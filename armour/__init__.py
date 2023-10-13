@@ -2,4 +2,10 @@
 # -*- coding: utf-8 -*-
 """armour"""
 
-__version__: str = "1.0.0"
+from typing import Final, Tuple
+
+from . import crypt, pdb
+
+__version__: Final[str] = "1.0.0"
+
+__all__: Final[Tuple[str, ...]] = "__version__", "crypt", "pdb"

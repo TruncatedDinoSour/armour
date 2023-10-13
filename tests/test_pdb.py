@@ -6,8 +6,7 @@ import os
 import struct
 from warnings import filterwarnings as filter_warnings
 
-import armour.crypt
-import armour.pdb
+import armour
 
 SALT: bytes = b"this is a salt used for security, in this test it will b static"
 PASSWORD: bytes = b"this is my very cool password :)"

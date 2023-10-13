@@ -1,2 +1,2 @@
 # armour documentation index
-- [pDB database format -- version 1](/doc/d/pDB-1.md)
+- [pDB database format -- version 0](/doc/d/pDB-0.md)

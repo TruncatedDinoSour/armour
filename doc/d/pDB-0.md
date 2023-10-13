@@ -1,4 +1,4 @@
-# pDB database format -- version 1
+# pDB database format -- version 0
 
 > pDB is a custom, security, entropy, data structure and data integrity focused password database
 > format with high customizability and a wide range of selection
