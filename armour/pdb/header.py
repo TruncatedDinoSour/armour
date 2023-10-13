@@ -31,6 +31,8 @@ def pack(fmt: str, data: typing.Any) -> bytes:
 
 @dataclass
 class PdbHeader:
+    """pdb header and base parser"""
+
     password: bytes
     salt: bytes
 
