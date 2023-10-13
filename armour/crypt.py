@@ -8,7 +8,8 @@ import typing
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes, hmac
+from cryptography.hazmat.primitives import hashes, hmac, padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # -- hashing --
@@ -34,6 +35,8 @@ HASHES: typing.Final[typing.Tuple[hashes.HashAlgorithm, ...]] = (
 
 RAND: typing.Final[secrets.SystemRandom] = secrets.SystemRandom()
 
+DEFAULT_BACKEND: typing.Final[typing.Any] = default_backend()
+
 
 def hash_walgo(
     hash_id: int,
@@ -54,10 +57,10 @@ def hash_walgo(
             length=32,
             salt=_salt,
             iterations=kdf_iters,
-            backend=default_backend(),
+            backend=DEFAULT_BACKEND,
         ).derive(key),
         HASHES[hash_id],
-        backend=default_backend(),
+        backend=DEFAULT_BACKEND,
     )
     h.update(data)
     return _salt + h.finalize()
@@ -135,7 +138,7 @@ def derrive_secure_key(
             length=32,
             salt=salt,
             iterations=kdf_iters + 1,
-            backend=default_backend(),
+            backend=DEFAULT_BACKEND,
         ).derive(password)
     )
 
@@ -174,3 +177,54 @@ def decrypt_secure(
             kdf_iters=kdf_iters,
         )
     ).decrypt(data)[:-32]
+
+
+# -- aes encryption --
+
+
+def aes_encrypt(password: bytes, data: bytes) -> bytes:
+    salt = RAND.randbytes(16)
+
+    kdf = PBKDF2HMAC(
+        algorithm=HASHES[0],
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=DEFAULT_BACKEND,
+    )
+
+    key = kdf.derive(password)
+    iv = RAND.randbytes(16)
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=DEFAULT_BACKEND)
+    encryptor = cipher.encryptor()
+
+    padder = padding.PKCS7(128).padder()
+    padded_data = padder.update(data) + padder.finalize()
+    ct = encryptor.update(padded_data) + encryptor.finalize()
+
+    return salt + iv + ct
+
+
+def aes_decrypt(password: bytes, data: bytes) -> bytes:
+    salt = data[:16]
+    iv = data[16:32]
+    ct = data[32:]
+
+    kdf = PBKDF2HMAC(
+        algorithm=HASHES[0],
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=DEFAULT_BACKEND,
+    )
+
+    key = kdf.derive(password)
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=DEFAULT_BACKEND)
+    decryptor = cipher.decryptor()
+
+    pt = decryptor.update(ct) + decryptor.finalize()
+
+    unpadder = padding.PKCS7(128).unpadder()
+    data = unpadder.update(pt) + unpadder.finalize()
+
+    return data
