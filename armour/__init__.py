@@ -4,8 +4,8 @@
 
 from typing import Final, Tuple
 
-from . import crypt, pdb
+from . import crypt, gen, pdb
 
 __version__: Final[str] = "1.0.0"
 
-__all__: Final[Tuple[str, ...]] = "__version__", "crypt", "pdb"
+__all__: Final[Tuple[str, ...]] = "__version__", "crypt", "gen", "pdb"

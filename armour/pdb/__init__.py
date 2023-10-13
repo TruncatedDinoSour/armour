@@ -4,6 +4,6 @@
 
 from typing import Final, Tuple
 
-from . import exc, header
+from . import entries, exc, header, s
 
-__all__: Final[Tuple[str, ...]] = "header", "exc"
+__all__: Final[Tuple[str, ...]] = "entries", "header", "exc", "s"

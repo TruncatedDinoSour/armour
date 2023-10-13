@@ -295,11 +295,11 @@ def encrypt_rc4(
 ) -> bytes:
     """encrypt rc4"""
 
-    rsalt: bytes = RAND.randbytes(hash_salt_len)
+    rsalt: bytes = RAND.randbytes(hash_salt_len + 13)
     key: bytes = hash_algo(0, rsalt + password + salt)
 
     for _ in range(isec_crypto_passes):
-        data = crypt_rc4(data=RAND.randbytes(10) + data, key=key)
+        data = crypt_rc4(data=RAND.randbytes(5) + data + RAND.randbytes(5), key=key)
 
     return rsalt + data
 
@@ -313,12 +313,14 @@ def decrypt_rc4(
 ) -> bytes:
     """decrypt rc4"""
 
+    hash_salt_len += 13
+
     rsalt: bytes = data[:hash_salt_len]
     data = data[hash_salt_len:]
 
     key: bytes = hash_algo(0, rsalt + password + salt)
 
     for _ in range(isec_crypto_passes):
-        data = crypt_rc4(data=data, key=key)[10:]
+        data = crypt_rc4(data=data, key=key)[5:-5]
 
     return data

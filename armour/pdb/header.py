@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """pdb header"""
 
-import struct
 import typing
 from dataclasses import dataclass
 from io import BytesIO
@@ -10,23 +9,13 @@ from io import BytesIO
 import zstd
 
 from .. import crypt
-from . import exc
+from . import exc, s
 
 MAGIC: bytes = b"pDB\xf6"
 VERSION: int = 0
 KDF_PASSES: int = 1048576  # 2 ** 20
 HASH_SALT_LEN: int = 64
 ZSTD_MAX_COMPRESSION: int = 22
-
-
-def unpack(fmt: str, data: bytes) -> typing.Any:
-    """unpack bytes to primative types"""
-    return struct.unpack(fmt, data)[0]
-
-
-def pack(fmt: str, data: typing.Any) -> bytes:
-    """pack bytes into bytes"""
-    return struct.pack(fmt, data)
 
 
 @dataclass
@@ -109,38 +98,38 @@ class PdbHeader:
 
         b: BytesIO = BytesIO(db)
 
-        magic: bytes = b.read(4)
+        magic: bytes = b.read(s.MAGIC)
 
         if magic != MAGIC:
             raise exc.InvalidMagicError(magic, MAGIC)
 
-        version: int = unpack("<H", b.read(2))
+        version: int = s.sunpack(s.S, b)
 
         if version != VERSION:
             raise exc.VersionMismatch(VERSION, version)
 
-        hash_id: int = unpack("<B", b.read(1))
+        hash_id: int = s.sunpack(s.B, b)
 
         if hash_id > len(crypt.HASHES) or hash_id < 0:
             raise exc.InvalidHashID(hash_id)
 
-        zstd_comp_lvl: int = unpack("<B", b.read(1))
+        zstd_comp_lvl: int = s.sunpack(s.B, b)
 
         if zstd_comp_lvl > ZSTD_MAX_COMPRESSION or zstd_comp_lvl < 0:
             raise exc.InvalidZSTDCompressionLvl(zstd_comp_lvl)
 
-        if (hash_salt_len := unpack("<B", b.read(1))) == 0:
+        if (hash_salt_len := s.sunpack(s.B, b)) == 0:
             raise exc.InvalidZeroValue("hash_salt_len cannot be zero")
 
         # secure hash prepends hash_salt_len bytes
         ds: int = hash_salt_len + crypt.HASHES[hash_id].digest_size
 
-        if (kdf_passes := unpack("<L", b.read(4))) == 0:
+        if (kdf_passes := s.sunpack(s.L, b)) == 0:
             raise exc.InvalidZeroValue("kdf_passes cannot be zero")
 
-        sec_crypto_passes: int = unpack("<H", b.read(2))
-        isec_crypto_passes: int = unpack("<H", b.read(2))
-        aes_crypto_passes: int = unpack("<H", b.read(2))
+        sec_crypto_passes: int = s.sunpack(s.S, b)
+        isec_crypto_passes: int = s.sunpack(s.S, b)
+        aes_crypto_passes: int = s.sunpack(s.S, b)
 
         entries_hash: bytes = b.read(ds)
 
@@ -178,6 +167,8 @@ class PdbHeader:
     def hash_entries(self) -> bytes:
         """hash entries and return their hash"""
 
+        self.encrypt()
+
         self.entries_hash = crypt.hash_walgo(
             self.hash_id,
             self.entries,
@@ -210,14 +201,14 @@ class PdbHeader:
 
         return (
             self.magic
-            + pack("<H", self.version)
-            + pack("<B", self.hash_id)
-            + pack("<B", self.zstd_comp_lvl)
-            + pack("<B", self.hash_salt_len)
-            + pack("<L", self.kdf_passes)
-            + pack("<H", self.sec_crypto_passes)
-            + pack("<H", self.isec_crypto_passes)
-            + pack("<H", self.aes_crypto_passes)
+            + s.pack(s.S, self.version)
+            + s.pack(s.B, self.hash_id)
+            + s.pack(s.B, self.zstd_comp_lvl)
+            + s.pack(s.B, self.hash_salt_len)
+            + s.pack(s.L, self.kdf_passes)
+            + s.pack(s.S, self.sec_crypto_passes)
+            + s.pack(s.S, self.isec_crypto_passes)
+            + s.pack(s.S, self.aes_crypto_passes)
             + self.hash_entries()
             + self.entries
         )
@@ -315,13 +306,13 @@ class PdbHeader:
     def __str__(self) -> str:
         """shows db info"""
 
-        s: str = " [insecure]" if self.hash_id > 9 else ""
+        sec: str = " [insecure]" if self.hash_id > 9 else ""
         p: str = f"~{self.zstd_comp_lvl / ZSTD_MAX_COMPRESSION * 100:.2f}%"
 
         return f"""
 version             {self.version}
 magic               {self.magic!r}
-hash_id             {self.hash_id} ( {crypt.HASHES[self.hash_id].name!r} ){s}
+hash_id             {self.hash_id} ( {crypt.HASHES[self.hash_id].name!r} ){sec}
 zstd_comp_lvl       {self.zstd_comp_lvl} ( {p} )
 hash_salt_len       {self.hash_salt_len}
 kdf_passes          {self.kdf_passes}

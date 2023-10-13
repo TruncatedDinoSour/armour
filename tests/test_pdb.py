@@ -3,7 +3,6 @@
 """pdb"""
 
 import os
-import struct
 from warnings import filterwarnings as filter_warnings
 
 import armour
@@ -25,8 +24,9 @@ def main() -> int:
             p = armour.pdb.header.PdbHeader.from_db(fp.read(), PASSWORD, SALT)
     else:
         p = armour.pdb.header.PdbHeader.empty(PASSWORD, SALT)
+        p.kdf_passes = 1
         p.hash_id = HASH_ID
-        p.zstd_comp_lvl = 11
+        p.zstd_comp_lvl = 22
         p.isec_crypto_passes = ISEC_PASSES
         p.encrypt()
 
@@ -46,34 +46,30 @@ def main() -> int:
 
     print("creating an entry")
 
-    data: bytes = b"hello world ! " + str(armour.crypt.RAND.random()).encode()
-
     # > key identifers may duplicate, although the most recent one will dominate
-    entry: bytes = b"a"  # entry name ( one char )
-    entry += struct.pack("<L", len(data))  # data size
-    entry += data  # data itself
-    entry = (  # <entry hash><entry>
-        armour.crypt.hash_walgo(
-            HASH_ID,
-            entry,
-            PASSWORD,
-            SALT,
-            384000,
-            19,
-        )
-        + entry
+    e = armour.pdb.entries.PdbEntries(p)
+    e.gather()
+    e.add_entry(
+        armour.pdb.entries.PdbEntry(
+            p,
+            fields={
+                b"a": f"hello world ! {armour.crypt.RAND.randint(-100, 100)} \
+{armour.crypt.RAND.random()}".encode(),
+            },
+        ).rehash()
     )
-    entry += b"\0"  # end of entry byte ( eoe )
 
-    p.entries += entry  # add the entry to the entries
-
-    print(p.entries, "")
+    print()
+    print(e)
+    print()
 
     print(
         f"""--- pre-dump ---
 
 {p}"""
     )
+
+    e.commit()
 
     with open(FILE, "wb") as fp:
         print(f"wrote {fp.write(p.to_pdb())} b to {fp.name}\n")

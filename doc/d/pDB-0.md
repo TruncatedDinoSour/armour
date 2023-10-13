@@ -82,8 +82,9 @@ secure bytes
 ## crypto
 
 -   ( custom ) rc4 ( insecure ) encryption
-    -   generates `hash_salt_len` random bytes
-    -   prepends 10 random bytes to the data, to introduce more entropy
+    -   generates `hash_salt_len + 13` random bytes
+    -   prepends 5 random bytes to the data, to introduce more entropy
+    -   appends 5 random bytes to the data, to introduce more entropy
     -   encrypts using rc4 with the key being derived from securely hashing `password + salt`
         using the most secure ( hash_id=0 ) hashing algorithm, to not leak the pw or salt as rc4 is insecure
     -   process is repeated `isec_crypto_passes` passes, for multiple encryption which should increase the security more
@@ -126,7 +127,7 @@ entries are converted into a single `unsigned char *` and its like this :
         -   `p` ( required, custom secure encrypted ) -- the password
         -   `m` ( optional, custom secure encrypted ) -- the metadata
             -   u can store any data in here, although id suggest using the standard fields syntax of `<identifier><size><data>`
-    -   examples
+    -   examples ( note : these are entries without the separating null byte )
         -   one entry : `<hash>n\x05\x00\x00\x00hellou\x<><crypt>p\x<><crypt>`
         -   one entry ( w meta ) :
             `<hash>n\x05\x00\x00\x00hellou\x<><crypt>p\x<><crypt>m\x<><crypt>`
