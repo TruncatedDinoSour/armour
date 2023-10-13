@@ -12,7 +12,7 @@ format is as follows :
 -   `unsigned short version` ( 2 little endian byte, `<H` ) -- the database version starting from 0
 -   `unsigned char hash_id` ( 1 little endian byte, `<B` ) -- the hashing algorithm used for secure hashing and encryption id from 0
     ( the lower the number the less preferred is the hashing algorithm, security being the main factor, consider
-    anything above 10 insecure and dont use it if possible as they can be broken )
+    anything above 9 insecure and dont use it if possible as they can be broken )
     -   0 -- SHA3_512 -- best for security
     -   1 -- BLAKE2b
     -   2 -- SHA512
@@ -28,20 +28,20 @@ format is as follows :
     -   12 -- SHA1 -- good for speed while still being not as bad as md5
     -   13 -- SM3
     -   14 -- MD5 -- best for speed
+-   `unsigned char zstd_comp_lvl` ( 1 little endian byte, `<B` ) -- the zstd compression level ( from 0 to 22 )
 -   `unsigned char hash_salt_len` ( 1 little endian byte, `<B` ) -- when using the hash how long should the salt be
 -   `unsigned long kdf_passes` ( 4 little endian bytes, `<L` ) -- the passes for `PBKDF2HMAC`
--   `unsigned char zstd_comp_lvl` ( 1 little endian byte, `<B` ) -- the zstd compression level ( from 0 to 22 )
 -   `unsigned short sec_crypto_passes` ( 2 little endian bytes, `<H` ) -- the count of custom secure encryption to do every time we encrypt
 -   `unsigned short isec_crypto_passes` ( 2 little endian bytes, `<H` ) -- the count of insecure encryption to do every time we encrypt
 -   `unsigned short aes_crypto_passes` ( 2 little endian bytes, `<H` ) -- the count of aes encryption to do every time we encrypt
 -   `unsigned char entries_hash[hash_digest_len]` ( `hash_digest_len` of `hash_id` hash bytes, `<{hash_digest_len}s` ) -- the secure database entries hash
 -   `unsigned char *entries` ( rest of the database, `<{n}s` ) -- the database itself
--   `unsigned char db_hash[hash_digest_len]` ( `hash_digest_len` of `hash_id` hash bytes, `<{hash_digest_len}s` ) -- the secure full database hash
+-   `unsigned char db_hash[hash_digest_len]` ( `hash_digest_len` of `hash_id` hash bytes, `<{hash_digest_len}s` ) -- the most secure full database hash, with kdf passes = 1048576 and hash_salt_len = 64
 
 ### auth
 
 -   password for the database password
--   salt for the database salting of some hashes ( e.g. the full db hash and the entries hash )
+-   salt for the database salting of some hashes ( e.g. the full db entries hash ) and encryption
 -   `isec_crypto_passes`, `sec_crypto_passes` and `aes_crypto_passes` are separated because insecure encryption is mainly
 -   there to be there as a small layer for the actual encryption and the insecure encryption is made to be fast so you can
     have way more passes of insecure than secure
@@ -57,11 +57,29 @@ format is as follows :
 -   the database entries hash is verified before trying to parse the entries
 -   the database entries are validated ( their hashes ) before trying to use them
 
+## randomness
+
+randomness is not pseudo-random, the randomness must be cryptographically secure,
+for example `secrets.SystemRandom().randbytes(10)` would generate 10 cryptographically
+secure bytes
+
+## hashing
+
+-   algorithmic hashing
+    -   uses ur selected algorithm as the base
+    -   returns the hash
+-   secure hashing
+    -   uses ur selected algorithm as the base
+    -   generates a random `hash_salt_len` byte salt, for more entropy and uniqueness of a hash
+    -   pbkdf2 + hmac using the generated salt as the generated salt and the password of the database as the password and the database salt
+    -   prepends the salt to the final hash, so we know what salt to use when comparing hashes
+
 ## crypto
 
 -   ( custom ) rc4 ( insecure ) encryption
-    -   appends 32 random bytes to the data ( not in the loop ), to introduce more entropy
-    -   encrypts using rc4 with the key being derived from securely hashing `32 randomly generates bytes + password + salt`
+    -   generates `hash_salt_len` random bytes
+    -   prepends 10 random bytes to the data, to introduce more entropy
+    -   encrypts using rc4 with the key being derived from securely hashing `password + salt`
         using the most secure ( hash_id=0 ) hashing algorithm, to not leak the pw or salt as rc4 is insecure
     -   process is repeated `isec_crypto_passes` passes, for multiple encryption which should increase the security more
     -   **note** that rc4 is not a secure algorithm and its only used because its fast and isnt as insecure as xor encryption,
@@ -75,21 +93,12 @@ format is as follows :
     -   process is repeated `aes_crypto_passes` passes, for multiple encryption which should increase the security more
     -   will always return bytes
 -   ( custom ) secure encryption
+    -   appends `hash_salt_len` random bytes to the output, to add more entropy
     -   fernet ( symmetric encryption ) + pbkdf2 with ur password and salt + hmac, which is a secure way of encrypting data
     -   process is repeated `sec_crypto_passes` passes, for multiple encryption which should increase the security more
-    -   prepends `hash_salt_len * 2` random bytes to the final output, to add more entropy
-    -   zstd compression, to reduce the size, add more data validation and add more entropy
-    -   appends `hash_salt_len` random bytes to the output, to add more entropy
-    -   fernet ( symmetric encryption ) + pbkdf2 with ur password and salt + hmac, final encryption step ensuring peak security
-    -   will always return base64 encoded bytes ( because fernet )
-
-## hashing
-
--   secure hashing
-    -   uses ur selected algorithm as the base
-    -   generates a random `hash_salt_len` byte salt, for more entropy and uniqueness of a hash
-    -   pbkdf2 + hmac using the generated salt as the generated salt and the password of the database as the password
-    -   prepends the salt to the final hash, so we know what salt to use when comparing hashes
+    -   zstd `zstd_comp_lvl` lvl compression, for more entropy and entropy
+    -   base85 encoding, the highest entropy usable text encoding in our case
+    -   will always return base84 encoded text as bytes
 
 ## entries
 

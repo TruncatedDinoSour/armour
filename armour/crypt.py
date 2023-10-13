@@ -6,10 +6,12 @@ import base64
 import secrets
 import typing
 
+import zstd
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, hmac, padding
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers import (Cipher, CipherContext, algorithms,
+                                                    modes)
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # -- hashing --
@@ -38,18 +40,28 @@ RAND: typing.Final[secrets.SystemRandom] = secrets.SystemRandom()
 DEFAULT_BACKEND: typing.Final[typing.Any] = default_backend()
 
 
+def hash_algo(hash_id: int, data: bytes) -> bytes:
+    """*just* hash the data"""
+
+    h: hashes.Hash = hashes.Hash(HASHES[hash_id], backend=DEFAULT_BACKEND)
+    h.update(data)
+    return h.finalize()
+
+
 def hash_walgo(
     hash_id: int,
     data: bytes,
     key: bytes,
+    salt: bytes,
     kdf_iters: int,
+    hash_salt_len: int,
     *,
     _salt: typing.Optional[bytes] = None,
 ) -> bytes:
     """securely hash bytes with a specified algorithm using hmac"""
 
     if _salt is None:
-        _salt = RAND.randbytes(19)
+        _salt = RAND.randbytes(hash_salt_len)
 
     h: hmac.HMAC = hmac.HMAC(
         PBKDF2HMAC(
@@ -58,11 +70,12 @@ def hash_walgo(
             salt=_salt,
             iterations=kdf_iters,
             backend=DEFAULT_BACKEND,
-        ).derive(key),
+        ).derive(key + salt),
         HASHES[hash_id],
         backend=DEFAULT_BACKEND,
     )
     h.update(data)
+
     return _salt + h.finalize()
 
 
@@ -70,56 +83,107 @@ def hash_walgo_compare(
     hash_id: int,
     data: bytes,
     key: bytes,
+    salt: bytes,
     kdf_iters: int,
+    hash_salt_len: int,
     target: bytes,
 ) -> bool:
     """securely compare hash of bytes with a specified algorithm using hmac"""
-
     return (
         hash_walgo(
             hash_id=hash_id,
             data=data,
             key=key,
+            salt=salt,
             kdf_iters=kdf_iters,
-            _salt=target[:19],
+            hash_salt_len=hash_salt_len,
+            _salt=target[:hash_salt_len],
         )
         == target
     )
 
 
-# -- rc4 encryption --
+# -- aes encryption --
 
 
-def crypt_rc4(data: bytes, key: bytes) -> bytes:
-    """rc4 crypto"""
+def encrypt_aes(
+    data: bytes,
+    password: bytes,
+    hash_id: int,
+    kdf_iters: int,
+    hash_salt_len: int,
+    aes_crypto_passes: int,
+) -> bytes:
+    """aes multiple encryption"""
 
-    S = list(range(256))
-    j: int = 0
-    out: bytearray = bytearray()
+    for _ in range(aes_crypto_passes):
+        salt: bytes = RAND.randbytes(hash_salt_len)
 
-    for i in range(256):
-        j = (j + S[i] + key[i % len(key)]) % 256
-        S[i], S[j] = S[j], S[i]
+        key: bytes = PBKDF2HMAC(
+            algorithm=HASHES[hash_id],
+            length=32,
+            salt=salt,
+            iterations=kdf_iters,
+            backend=DEFAULT_BACKEND,
+        ).derive(password)
 
-    i = j = 0
+        iv: bytes = RAND.randbytes(16)
 
-    for byte in data:
-        i = (i + 1) % 256
-        j = (j + S[i]) % 256
-        S[i], S[j] = S[j], S[i]
-        out.append(byte ^ S[(S[i] + S[j]) % 256])
+        encryptor: CipherContext = Cipher(
+            algorithms.AES(key),
+            modes.CBC(iv),
+            backend=DEFAULT_BACKEND,
+        ).encryptor()
 
-    return bytes(out)
+        padder: padding.PaddingContext = padding.PKCS7(128).padder()
+
+        data = (
+            encryptor.update(padder.update(data) + padder.finalize())
+            + encryptor.finalize()
+        )
+
+        data = salt + iv + data
+
+    return data
 
 
-def encrypt_rc4(data: bytes, key: bytes) -> bytes:
-    """encrypt rc4"""
-    return crypt_rc4(data=data + RAND.randbytes(32), key=key)
+def decrypt_aes(
+    data: bytes,
+    password: bytes,
+    hash_id: int,
+    kdf_iters: int,
+    hash_salt_len: int,
+    aes_crypto_passes: int,
+) -> bytes:
+    """aes multiple encryption"""
 
+    mid: int = hash_salt_len + 16
 
-def decrypt_rc4(data: bytes, key: bytes) -> bytes:
-    """decrypt rc4"""
-    return crypt_rc4(data=data, key=key)[:-32]
+    for _ in range(aes_crypto_passes):
+        salt: bytes = data[:hash_salt_len]
+        iv: bytes = data[hash_salt_len:mid]
+        ct: bytes = data[mid:]
+
+        key: bytes = PBKDF2HMAC(
+            algorithm=HASHES[hash_id],
+            length=32,
+            salt=salt,
+            iterations=kdf_iters,
+            backend=DEFAULT_BACKEND,
+        ).derive(password)
+
+        decryptor: CipherContext = Cipher(
+            algorithms.AES(key),
+            modes.CBC(iv),
+            backend=DEFAULT_BACKEND,
+        ).decryptor()
+
+        pt: bytes = decryptor.update(ct) + decryptor.finalize()
+        unpadder: padding.PaddingContext = padding.PKCS7(128).unpadder()
+
+        data = unpadder.update(pt) + unpadder.finalize()
+
+    return data
 
 
 # -- secure encryption --
@@ -148,17 +212,26 @@ def encrypt_secure(
     password: bytes,
     salt: bytes,
     hash_id: int,
+    hash_salt_len: int,
+    sec_crypto_passes: int,
     kdf_iters: int,
+    zstd_comp_lvl: int,
 ) -> bytes:
     """securely encrypt data"""
-    return Fernet(
-        derrive_secure_key(
-            password=password,
-            salt=salt,
-            hash_id=hash_id,
-            kdf_iters=kdf_iters,
-        )
-    ).encrypt(data + RAND.randbytes(32))
+
+    for _ in range(sec_crypto_passes):
+        data = Fernet(
+            derrive_secure_key(
+                password=password,
+                salt=salt,
+                hash_id=hash_id,
+                kdf_iters=kdf_iters,
+            )
+        ).encrypt(data + RAND.randbytes(hash_salt_len))
+
+    return base64.b85encode(
+        zstd.compress(data, zstd_comp_lvl, zstd.ZSTD_threads_count())
+    )
 
 
 def decrypt_secure(
@@ -166,65 +239,85 @@ def decrypt_secure(
     password: bytes,
     salt: bytes,
     hash_id: int,
+    hash_salt_len: int,
+    sec_crypto_passes: int,
     kdf_iters: int,
 ) -> bytes:
     """securely decrypt data"""
-    return Fernet(
-        derrive_secure_key(
-            password=password,
-            salt=salt,
-            hash_id=hash_id,
-            kdf_iters=kdf_iters,
-        )
-    ).decrypt(data)[:-32]
+
+    data = zstd.decompress(base64.b85decode(data))
+
+    for _ in range(sec_crypto_passes):
+        data = Fernet(
+            derrive_secure_key(
+                password=password,
+                salt=salt,
+                hash_id=hash_id,
+                kdf_iters=kdf_iters,
+            )
+        ).decrypt(data)[:-hash_salt_len]
+
+    return data
 
 
-# -- aes encryption --
+# -- rc4 encryption --
 
 
-def aes_encrypt(password: bytes, data: bytes) -> bytes:
-    salt = RAND.randbytes(16)
+def crypt_rc4(data: bytes, key: bytes) -> bytes:
+    """rc4 crypto"""
 
-    kdf = PBKDF2HMAC(
-        algorithm=HASHES[0],
-        length=32,
-        salt=salt,
-        iterations=100000,
-        backend=DEFAULT_BACKEND,
-    )
+    S = list(range(256))
+    j: int = 0
+    out: bytearray = bytearray()
 
-    key = kdf.derive(password)
-    iv = RAND.randbytes(16)
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=DEFAULT_BACKEND)
-    encryptor = cipher.encryptor()
+    for i in range(256):
+        j = (j + S[i] + key[i % len(key)]) % 256
+        S[i], S[j] = S[j], S[i]
 
-    padder = padding.PKCS7(128).padder()
-    padded_data = padder.update(data) + padder.finalize()
-    ct = encryptor.update(padded_data) + encryptor.finalize()
+    i = j = 0
 
-    return salt + iv + ct
+    for byte in data:
+        i = (i + 1) % 256
+        j = (j + S[i]) % 256
+        S[i], S[j] = S[j], S[i]
+        out.append(byte ^ S[(S[i] + S[j]) % 256])
+
+    return bytes(out)
 
 
-def aes_decrypt(password: bytes, data: bytes) -> bytes:
-    salt = data[:16]
-    iv = data[16:32]
-    ct = data[32:]
+def encrypt_rc4(
+    data: bytes,
+    isec_crypto_passes: int,
+    password: bytes,
+    salt: bytes,
+    hash_salt_len: int,
+) -> bytes:
+    """encrypt rc4"""
 
-    kdf = PBKDF2HMAC(
-        algorithm=HASHES[0],
-        length=32,
-        salt=salt,
-        iterations=100000,
-        backend=DEFAULT_BACKEND,
-    )
+    rsalt: bytes = RAND.randbytes(hash_salt_len)
+    key: bytes = hash_algo(0, rsalt + password + salt)
 
-    key = kdf.derive(password)
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=DEFAULT_BACKEND)
-    decryptor = cipher.decryptor()
+    for _ in range(isec_crypto_passes):
+        data = crypt_rc4(data=RAND.randbytes(10) + data, key=key)
 
-    pt = decryptor.update(ct) + decryptor.finalize()
+    return rsalt + data
 
-    unpadder = padding.PKCS7(128).unpadder()
-    data = unpadder.update(pt) + unpadder.finalize()
+
+def decrypt_rc4(
+    data: bytes,
+    isec_crypto_passes: int,
+    password: bytes,
+    salt: bytes,
+    hash_salt_len: int,
+) -> bytes:
+    """decrypt rc4"""
+
+    rsalt: bytes = data[:hash_salt_len]
+    data = data[hash_salt_len:]
+
+    key: bytes = hash_algo(0, rsalt + password + salt)
+
+    for _ in range(isec_crypto_passes):
+        data = crypt_rc4(data=data, key=key)[10:]
 
     return data
