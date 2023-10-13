@@ -3,6 +3,11 @@
 > pDB is a custom, security, entropy, data structure and data integrity focused password database
 > format with high customizability and a wide range of selection
 
+## file extensions
+
+-   `*.pdb` -- password database ( pDB )
+-   `*.slt` -- salt files ( any data )
+
 ## database
 
 format is as follows :
@@ -109,6 +114,8 @@ entries are converted into a single `unsigned char *` and its like this :
     -   fields
         -   `unsigned char ident` ( 1 little endian byte, `<B` ) -- the field identifier
             -   normal identifiers start from 0x1, identifier of 0x0 means next entry
+            -   key identifers may duplicate, although the most recent one will dominate
+                -   say i repeat the key a with values `a` and `b` after, value of `a` will b `b`
         -   `unsigned long size` ( 4 little endian bytes, `<L` ) -- the size of the field
             -   fields of size `0` are not valid
             -   theres zero way well need more than 4 gibibytes ( 4294967295 bytes, max value of `unsigned long` ) per field

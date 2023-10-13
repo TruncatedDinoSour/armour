@@ -168,3 +168,7 @@ cython_debug/
 .pytest_cache/
 .tox/
 *.key
+*.pdb
+*.tmp/
+/magic
+/magic.mgc

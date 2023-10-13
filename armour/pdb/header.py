@@ -222,8 +222,8 @@ class PdbHeader:
 
     def to_pdb(self) -> bytes:
         """to pdb"""
-        db = self.to_db()
-        return db + self.hash_db(db)
+        self.encrypt()
+        return (db := self.to_db()) + self.hash_db(db)
 
     def encrypt(self) -> "PdbHeader":
         """self-encrypts"""
@@ -329,5 +329,6 @@ aes_crypto_passes   {self.aes_crypto_passes}
 entries_hash        <... {len(self.entries_hash)} bytes>
 entries             <... {len(self.entries)} bytes>
 db_hash             <... {len(self.db_hash)} bytes>
+encrypted           {self.encrypted}
 digest_size         {self.ds()}
 """.strip()
