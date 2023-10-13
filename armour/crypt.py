@@ -89,6 +89,7 @@ def hash_walgo_compare(
     target: bytes,
 ) -> bool:
     """securely compare hash of bytes with a specified algorithm using hmac"""
+
     return (
         hash_walgo(
             hash_id=hash_id,

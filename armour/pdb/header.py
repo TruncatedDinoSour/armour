@@ -49,19 +49,47 @@ class PdbHeader:
 
     encrypted: bool = True
 
+    @staticmethod
+    def dds(hash_id: int) -> int:
+        """return total hash digest size"""
+        return crypt.HASHES[hash_id].digest_size
+
     def ds(self, hash_id: typing.Optional[int] = None) -> int:
         """return the secure digest size"""
 
         if hash_id is None:
             hash_id = self.hash_id
 
-        return self.hash_salt_len + crypt.HASHES[hash_id].digest_size
+        return self.hash_salt_len + self.dds(hash_id)
+
+    @classmethod
+    def empty(cls, password: bytes = b"", salt: bytes = b"") -> "PdbHeader":
+        """return an empty PdbHeader w default preset values"""
+        return cls(
+            password=password,
+            salt=salt,
+            magic=MAGIC,
+            version=VERSION,
+            hash_id=0,
+            zstd_comp_lvl=ZSTD_MAX_COMPRESSION,
+            hash_salt_len=19,
+            kdf_passes=384000,
+            sec_crypto_passes=8,
+            isec_crypto_passes=64,
+            aes_crypto_passes=8,
+            entries_hash=b"",
+            entries=b"",
+            db_hash=b"",
+            encrypted=False,
+        )
 
     @classmethod
     def from_db(cls, db: bytes, password: bytes, salt: bytes) -> "PdbHeader":
         """parse header from db"""
 
-        sds: int = crypt.HASHES[0].digest_size
+        sds: int = cls.dds(0) + HASH_SALT_LEN
+
+        db_hash: bytes = db[-sds:]
 
         if not crypt.hash_walgo_compare(
             0,
@@ -70,7 +98,7 @@ class PdbHeader:
             salt,
             KDF_PASSES,
             HASH_SALT_LEN,
-            (db_hash := db[-sds:]),
+            db_hash,
         ):
             raise exc.DataIntegrityError(
                 f"invalid database hash {db_hash!r} -- not trying to parse it",
@@ -89,17 +117,17 @@ class PdbHeader:
         if version != VERSION:
             raise exc.VersionMismatch(VERSION, version)
 
-        hash_id: int = int(b.read(1))
+        hash_id: int = unpack("<B", b.read(1))
 
         if hash_id > len(crypt.HASHES) or hash_id < 0:
             raise exc.InvalidHashID(hash_id)
 
-        zstd_comp_lvl: int = int(b.read(1))
+        zstd_comp_lvl: int = unpack("<B", b.read(1))
 
         if zstd_comp_lvl > ZSTD_MAX_COMPRESSION or zstd_comp_lvl < 0:
             raise exc.InvalidZSTDCompressionLvl(zstd_comp_lvl)
 
-        if (hash_salt_len := int(b.read())) == 0:
+        if (hash_salt_len := unpack("<B", b.read(1))) == 0:
             raise exc.InvalidZeroValue("hash_salt_len cannot be zero")
 
         # secure hash prepends hash_salt_len bytes
@@ -116,10 +144,10 @@ class PdbHeader:
 
         if not crypt.hash_walgo_compare(
             hash_id,
-            (entries := b.read()[:-sds]),
+            (entries := b.read()),
             password,
             salt,
-            KDF_PASSES,
+            kdf_passes,
             hash_salt_len,
             entries_hash,
         ):
@@ -145,14 +173,41 @@ class PdbHeader:
             db_hash=db_hash,
         )
 
+    def hash_entries(self) -> bytes:
+        """hash entries and return their hash"""
+
+        self.entries_hash = crypt.hash_walgo(
+            self.hash_id,
+            self.entries,
+            self.password,
+            self.salt,
+            self.kdf_passes,
+            self.hash_salt_len,
+        )
+
+        return self.entries_hash
+
+    def hash_db(self, db: bytes) -> bytes:
+        """hash a db and return its hash"""
+
+        self.db_hash = crypt.hash_walgo(
+            0,
+            db,
+            self.password,
+            self.salt,
+            KDF_PASSES,
+            HASH_SALT_LEN,
+        )
+
+        return self.db_hash
+
     def to_db(self) -> bytes:
-        """convert a header object to the database"""
+        """to db"""
 
-        sds: int = self.ds(0)
-        ds: int = self.ds()
+        self.encrypt()
 
-        db: bytes = (
-            pack("<4B", self.magic)
+        return (
+            self.magic
             + pack("<H", self.version)
             + pack("<B", self.hash_id)
             + pack("<B", self.zstd_comp_lvl)
@@ -161,39 +216,20 @@ class PdbHeader:
             + pack("<H", self.sec_crypto_passes)
             + pack("<H", self.isec_crypto_passes)
             + pack("<H", self.aes_crypto_passes)
-            + pack(
-                f"<{ds}B",
-                crypt.hash_walgo(
-                    self.hash_id,
-                    self.entries,
-                    self.password,
-                    self.salt,
-                    self.kdf_passes,
-                    self.hash_salt_len,
-                ),
-            )
+            + self.hash_entries()
             + self.entries
         )
 
-        db += pack(
-            f"<{sds}B",
-            crypt.hash_walgo(
-                0,
-                db,
-                self.password,
-                self.salt,
-                KDF_PASSES,
-                HASH_SALT_LEN,
-            ),
-        )
+    def to_pdb(self) -> bytes:
+        """to pdb"""
+        db = self.to_db()
+        return db + self.hash_db(db)
 
-        return db
-
-    def encrypt(self) -> None:
+    def encrypt(self) -> "PdbHeader":
         """self-encrypts"""
 
         if self.encrypted:
-            return
+            return self
 
         entries: bytes = crypt.encrypt_secure(
             self.entries,
@@ -232,11 +268,13 @@ class PdbHeader:
         self.entries = entries
         self.encrypted = True
 
-    def decrypt(self) -> None:
+        return self
+
+    def decrypt(self) -> "PdbHeader":
         """self-decrypts"""
 
         if not self.encrypted:
-            return
+            return self
 
         entries: bytes = crypt.decrypt_rc4(
             self.entries,
@@ -269,6 +307,8 @@ class PdbHeader:
 
         self.entries = entries
         self.encrypted = False
+
+        return self
 
     def __str__(self) -> str:
         """shows db info"""
