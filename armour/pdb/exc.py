@@ -53,3 +53,11 @@ class InvalidZSTDCompressionLvl(Exception):
 
 class InvalidZeroValue(Exception):
     """zero value in an invalid place"""
+
+
+class StructureError(Exception):
+    """raised when the structure of an entry is invalid"""
+
+    def __init__(self, entry_id: int) -> None:
+        super().__init__(f"entry #{entry_id} has invalid structure")
+        self.entry_id: int = entry_id

@@ -122,17 +122,13 @@ entries are converted into a single `unsigned char *` and its like this :
             -   theres zero way well need more than 4 gibibytes ( 4294967295 bytes, max value of `unsigned long` ) per field
         -   `unsigned char data[size]` ( `size` little endian byte, `<{size}B` ) -- the field data
     -   standard fields
-        -   `n` ( required, all chars in range of [1;255] ) -- the name of the field
+        -   `n` ( required ) -- the name of the field
         -   `u` ( required, custom secure encrypted ) -- the username
         -   `p` ( required, custom secure encrypted ) -- the password
-        -   `m` ( optional, custom secure encrypted ) -- the metadata
-            -   u can store any data in here, although id suggest using the standard fields syntax of `<identifier><size><data>`
+        -   `r` ( optional ) -- the note ( remark )
     -   examples ( note : these are entries without the separating null byte )
-        -   one entry : `<hash>n\x05\x00\x00\x00hellou\x<><crypt>p\x<><crypt>`
-        -   one entry ( w meta ) :
-            `<hash>n\x05\x00\x00\x00hellou\x<><crypt>p\x<><crypt>m\x<><crypt>`
-        -   two entries :
-            `<hash>n\x05\x00\x00\x00hellou\x<><crypt>p\x<><crypt>\0<hash>n\x05\x00\x00\x00hellou\x<><crypt>p\x<><crypt>`
+        -   `<hash>n\x04nameu\x<><crypt>p\x<><crypt>`
+        -   ( w remark ) `<hash>n\x04nameu\x<><crypt>p\x<><crypt>r\x05hello`
 -   entries are separated by null bytes `\0`
 
 ### entries db

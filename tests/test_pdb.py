@@ -49,15 +49,24 @@ def main() -> int:
     # > key identifers may duplicate, although the most recent one will dominate
     e = armour.pdb.entries.PdbEntries(p)
     e.gather()
+    pwe: armour.pdb.entries.PdbPwdEntry
     e.add_entry(
-        armour.pdb.entries.PdbEntry(
+        pwe := armour.pdb.entries.PdbPwdEntry(
             p,
             fields={
-                b"a": f"hello world ! {armour.crypt.RAND.randint(-100, 100)} \
+                b"n": f"hello world ! {armour.crypt.RAND.randint(-100, 100)} \
 {armour.crypt.RAND.random()}".encode(),
+                b"p": b"my password 124",
+                b"r": b"this is my remark :)",
+                b"u": b"super secret user",
             },
         ).rehash()
     )
+
+    print(pwe.username)
+    # pwe[b"u"] = b"hello !"
+    # pwe.rehash()
+    # print(pwe.get_field_raw(b"u"))
 
     print()
     print(e)

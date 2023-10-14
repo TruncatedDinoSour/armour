@@ -117,6 +117,10 @@ class PasswordInfo:
 
         return patterns_list
 
+    def common_patterns_count(self) -> int:
+        """return common patterns count"""
+        return sum(end - start for start, end in self.common_patterns())
+
     def entropy(self) -> float:
         """password entropy by frequency analysis"""
 
@@ -137,7 +141,7 @@ class PasswordInfo:
 
         return (
             self.sequences_count()
-            * (len(self.common_patterns()) ** 2)
+            * (self.common_patterns_count() ** 2)
             * (lower_len if lower_len == self.length else 1)
             * (upper_len if upper_len == self.length else 1)
         )
@@ -153,10 +157,9 @@ class PasswordInfo:
     def __str__(self) -> str:
         """return pw info as a string"""
 
-        pats: List[Tuple[int, int]] = self.common_patterns()
-
         common_patterns: str = "\n    ".join(
-            f"- {repr(self.pw[frm:to])[1:]} ( from {frm} to {to} )" for frm, to in pats
+            f"- {repr(self.pw[frm:to])[1:]} ( from {frm} to {to} )"
+            for frm, to in self.common_patterns()
         )
         sequences: str = "\n    ".join(
             f"- {repr(self.pw[frm:to])[1:]} ( from {frm} to {to} )"
@@ -173,7 +176,7 @@ alphabet            {self.codes_to_str(self.alphabet) or '<none>'!r}
     alphabet combos {self.alphabet_combos}
 sequences           {self.sequences_count()}
     {sequences or '<none>'}
-common patterns     {len(pats)}
+common patterns     {self.common_patterns_count()}
     {common_patterns or '<none>'}
 entropy bits        {self.entropy()}
 strength            {self.strength()}
