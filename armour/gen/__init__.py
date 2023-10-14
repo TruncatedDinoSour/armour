@@ -4,6 +4,9 @@
 
 from typing import Tuple
 
-from . import info
+from . import gen, info
 
-__all__: Tuple[str] = ("info",)
+__all__: Tuple[str, str] = (
+    "info",
+    "gen",
+)

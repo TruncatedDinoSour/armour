@@ -20,7 +20,7 @@ patterns += patterns[::-1]
 class PasswordInfo:
     """password info extractor"""
 
-    def __init__(self, pw: bytes) -> None:
+    def __init__(self, pw: bytes = b"") -> None:
         self.pw: bytes = pw
 
     @property
@@ -144,7 +144,7 @@ class PasswordInfo:
 
     def actual_strength(self) -> float:
         """actual strength for passwords in real world"""
-        return (self.strength() * len(self.alphabet)) / max(1, self.weakness()) / 10
+        return (self.strength() * len(self.alphabet)) / max(1, self.weakness()) / 16
 
     def codes_to_str(self, what: Iterable[int]) -> str:
         """convers an iterable of codes to a literal byte string"""
@@ -156,8 +156,7 @@ class PasswordInfo:
         pats: List[Tuple[int, int]] = self.common_patterns()
 
         common_patterns: str = "\n    ".join(
-            f"- {repr(self.pw[frm:to])[1:]} ( from {frm} to {to} )"
-            for frm, to in pats
+            f"- {repr(self.pw[frm:to])[1:]} ( from {frm} to {to} )" for frm, to in pats
         )
         sequences: str = "\n    ".join(
             f"- {repr(self.pw[frm:to])[1:]} ( from {frm} to {to} )"

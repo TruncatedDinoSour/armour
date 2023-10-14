@@ -10,7 +10,13 @@ import armour
 def main() -> int:
     """entry / main function"""
 
-    print(armour.gen.info.PasswordInfo(b"hello world" + armour.crypt.RAND.randbytes(10)))
+    print(
+        armour.gen.info.PasswordInfo(b"hello wooorld" + armour.crypt.RAND.randbytes(10))
+    )
+
+    print()
+
+    print(armour.gen.gen.PwGenerator().gen())
 
     return 0
 

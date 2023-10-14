@@ -5,7 +5,7 @@ set -eu
 main() {
     cd tests
 
-    for pfile in ./*.py; do
+    for pfile in ./test_*.py; do
         echo " * running $pfile"
         python3 "$pfile"
     done
