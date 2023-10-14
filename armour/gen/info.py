@@ -3,9 +3,8 @@
 """password info"""
 
 from collections import Counter
-from itertools import groupby
-from math import log2
-from typing import Set, Tuple
+from math import log, log2
+from typing import Iterable, List, Set, Tuple
 
 __all__: Tuple[str, str] = "PasswordInfo", "patterns"
 
@@ -30,26 +29,27 @@ class PasswordInfo:
         return len(self.pw)
 
     @property
-    def lowercase(self) -> int:
+    def lower(self) -> Tuple[int, ...]:
         """lowercase letters"""
-        return sum(97 <= bc <= 122 for bc in self.pw)
+        return tuple(bc for bc in self.pw if 97 <= bc <= 122)
 
     @property
-    def uppercase(self) -> int:
+    def upper(self) -> Tuple[int, ...]:
         """uppercase letters"""
-        return sum(65 <= bc <= 90 for bc in self.pw)
+        return tuple(bc for bc in self.pw if 65 <= bc <= 90)
 
     @property
-    def numbers(self) -> int:
+    def numbers(self) -> Tuple[int, ...]:
         """numbers"""
-        return sum(48 <= bc <= 57 for bc in self.pw)
+        return tuple(bc for bc in self.pw if 48 <= bc <= 57)
 
     @property
-    def special(self) -> int:
+    def special(self) -> Tuple[int, ...]:
         """special / other characters ( [^a-zA-Z0-9] )"""
-        return sum(
-            (bc < 48) or (57 < bc < 65) or (90 < bc < 97) or (bc > 122)
+        return tuple(
+            bc
             for bc in self.pw
+            if (bc < 48) or (57 < bc < 65) or (90 < bc < 97) or (bc > 122)
         )
 
     @property
@@ -58,24 +58,38 @@ class PasswordInfo:
         return set(self.pw)
 
     @property
-    def alphabet_len(self) -> int:
-        """alphabet length"""
-        return len(self.alphabet)
-
-    @property
     def alphabet_combos(self) -> int:
         """alphabet combinations"""
-        return self.alphabet_len**self.length
+        return len(self.alphabet) ** self.length
 
-    @property
-    def sequences(self) -> int:
-        """password sequences"""
-        return sum(1 for _ in groupby(self.pw))
+    def sequences(self) -> List[Tuple[int, int]]:
+        """return the list of repeated sequences indexes"""
 
-    def common_patterns(self) -> int:
-        """returns the count of common patterns"""
+        repeats: List[Tuple[int, int]] = []
+        idx: int = 0
 
-        sequences_length: int = 0
+        while idx < self.length - 1:
+            if self.pw[idx] == self.pw[idx + 1]:
+                start: int = idx
+
+                while idx < self.length - 1 and self.pw[idx] == self.pw[idx + 1]:
+                    idx += 1
+
+                repeats.append((start, idx + 1))
+
+            idx += 1
+
+        return repeats
+
+    def sequences_count(self) -> int:
+        """return sequences count"""
+        return sum(end - start for start, end in self.sequences())
+
+    def common_patterns(self) -> List[Tuple[int, int]]:
+        """returns the list of tuples which have start and
+        ending indexes of the common patterns"""
+
+        patterns_list: List[Tuple[int, int]] = []
         idx: int = 0
 
         while idx < self.length:
@@ -84,23 +98,24 @@ class PasswordInfo:
             common_length: int = 1
 
             while (jdx := patterns.find(b_slice[0], jdx + 1)) != -1:
-                common_here_len: int = 0
+                common_here_pattern: bytes = b""
 
                 for a, b_component in zip(b_slice, patterns[jdx:]):
                     if a != b_component:
                         break
 
-                    common_here_len += 1
+                    common_here_pattern += bytes((a,))
 
-                common_length = max(common_length, common_here_len)
+                if len(common_here_pattern) > common_length:
+                    common_length = len(common_here_pattern)
 
             if common_length > 2:
-                sequences_length += common_length
+                patterns_list.append((idx, idx + common_length))
                 idx += common_length
             else:
                 idx += 1
 
-        return sequences_length
+        return patterns_list
 
     def entropy(self) -> float:
         """password entropy by frequency analysis"""
@@ -112,17 +127,57 @@ class PasswordInfo:
 
     def strength(self) -> float:
         """password strength"""
-        return self.entropy() * self.length
+        return self.entropy() * self.length + log(self.alphabet_combos)
 
     def weakness(self) -> float:
         """password weakness"""
+
+        lower_len: int = len(self.lower)
+        upper_len: int = len(self.upper)
+
         return (
-            self.sequences
-            * (self.common_patterns() ** 2)
-            * (self.lowercase if self.lowercase == self.length else 1)
-            * (self.uppercase if self.uppercase == self.length else 1)
+            self.sequences_count()
+            * (len(self.common_patterns()) ** 2)
+            * (lower_len if lower_len == self.length else 1)
+            * (upper_len if upper_len == self.length else 1)
         )
 
     def actual_strength(self) -> float:
         """actual strength for passwords in real world"""
-        return (self.strength() * self.alphabet_len) / max(1, self.weakness())
+        return (self.strength() * len(self.alphabet)) / max(1, self.weakness()) / 10
+
+    def codes_to_str(self, what: Iterable[int]) -> str:
+        """convers an iterable of codes to a literal byte string"""
+        return repr(bytes(what))[2:-1]
+
+    def __str__(self) -> str:
+        """return pw info as a string"""
+
+        pats: List[Tuple[int, int]] = self.common_patterns()
+
+        common_patterns: str = "\n    ".join(
+            f"- {repr(self.pw[frm:to])[1:]} ( from {frm} to {to} )"
+            for frm, to in pats
+        )
+        sequences: str = "\n    ".join(
+            f"- {repr(self.pw[frm:to])[1:]} ( from {frm} to {to} )"
+            for frm, to in self.sequences()
+        )
+
+        return f"""
+length              {self.length}
+lowercase           {self.codes_to_str(self.lower) or '<none>'!r}
+uppercase           {self.codes_to_str(self.upper) or '<none>'!r}
+numbers             {self.codes_to_str(self.numbers) or '<none>'!r}
+special             {self.codes_to_str(self.special) or '<none>'!r}
+alphabet            {self.codes_to_str(self.alphabet) or '<none>'!r}
+    alphabet combos {self.alphabet_combos}
+sequences           {self.sequences_count()}
+    {sequences or '<none>'}
+common patterns     {len(pats)}
+    {common_patterns or '<none>'}
+entropy bits        {self.entropy()}
+strength            {self.strength()}
+weakness            {self.weakness()}
+actual strength     {self.actual_strength()}
+""".strip()
