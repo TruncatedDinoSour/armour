@@ -190,13 +190,13 @@ def decrypt_aes(
 # -- secure encryption --
 
 
-def derrive_secure_key(
+def derive_secure_key(
     password: bytes,
     salt: bytes,
     hash_id: int,
     kdf_iters: int,
 ) -> bytes:
-    """derrive key from password"""
+    """derive key from password"""
     return base64.urlsafe_b64encode(
         PBKDF2HMAC(
             algorithm=HASHES[hash_id],
@@ -222,7 +222,7 @@ def encrypt_secure(
 
     for _ in range(sec_crypto_passes):
         data = Fernet(
-            derrive_secure_key(
+            derive_secure_key(
                 password=password,
                 salt=salt,
                 hash_id=hash_id,
@@ -250,7 +250,7 @@ def decrypt_secure(
 
     for _ in range(sec_crypto_passes):
         data = Fernet(
-            derrive_secure_key(
+            derive_secure_key(
                 password=password,
                 salt=salt,
                 hash_id=hash_id,

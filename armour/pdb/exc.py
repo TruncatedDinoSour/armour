@@ -61,3 +61,13 @@ class StructureError(Exception):
     def __init__(self, entry_id: int) -> None:
         super().__init__(f"entry #{entry_id} has invalid structure")
         self.entry_id: int = entry_id
+
+
+class InvalidIdentifier(Exception):
+    """raised when the identifier is invalid"""
+
+    def __init__(self, ident: bytes, entry_id: int) -> None:
+        super().__init__(f"identifier {ident!r} of entry #{entry_id} is invalid")
+
+        self.ident: bytes = ident
+        self.entry_id: int = entry_id

@@ -25,6 +25,7 @@ class PwGenerator:
     min_numbers: int = -1
     min_special: int = -1
     min_alphabet: int = -1
+    max_sequences: int = -1
     max_common_patterns: int = -1
     min_entropy: int = -1
     min_strength: int = -1
@@ -41,6 +42,10 @@ class PwGenerator:
             (self.min_numbers, lambda: len(pw.numbers) < self.min_upper),
             (self.min_special, lambda: len(pw.special) < self.min_special),
             (self.min_alphabet, lambda: len(pw.alphabet) < self.min_alphabet),
+            (
+                self.max_sequences,
+                lambda: pw.sequences_count() > self.max_sequences,
+            ),
             (
                 self.max_common_patterns,
                 lambda: len(pw.common_patterns()) > self.max_common_patterns,

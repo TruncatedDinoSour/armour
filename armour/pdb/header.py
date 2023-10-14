@@ -42,7 +42,7 @@ class PdbHeader:
 
     @staticmethod
     def dds(hash_id: int) -> int:
-        """return total hash digest size"""
+        """return hash digest size"""
         return crypt.HASHES[hash_id].digest_size
 
     def ds(self, hash_id: typing.Optional[int] = None) -> int:
@@ -75,7 +75,12 @@ class PdbHeader:
         )
 
     @classmethod
-    def from_db(cls, db: bytes, password: bytes, salt: bytes) -> "PdbHeader":
+    def from_db(
+        cls,
+        db: bytes,
+        password: bytes = b"",
+        salt: bytes = b"",
+    ) -> "PdbHeader":
         """parse header from db"""
 
         sds: int = cls.dds(0) + HASH_SALT_LEN

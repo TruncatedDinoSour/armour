@@ -138,12 +138,14 @@ class PasswordInfo:
 
         lower_len: int = len(self.lower)
         upper_len: int = len(self.upper)
+        num_len: int = len(self.numbers)
 
         return (
             self.sequences_count()
             * (self.common_patterns_count() ** 2)
             * (lower_len if lower_len == self.length else 1)
             * (upper_len if upper_len == self.length else 1)
+            * (num_len if num_len == self.length else 1)
         )
 
     def actual_strength(self) -> float:

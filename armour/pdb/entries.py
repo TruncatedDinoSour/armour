@@ -98,67 +98,79 @@ class PdbEntry(ABC):
 
         return self
 
-    def set_field_raw(self, name: bytes, value: bytes) -> Any:
-        """set field name to value
+    def set_field_raw(self, ident: bytes, value: bytes) -> Any:
+        """set field ident to value
 
         :rtype: Self"""
 
-        self.fields[name] = value
+        if ident == b"\0" or len(ident) != 1:
+            raise exc.InvalidIdentifier(ident, self.entry_id)
+
+        self.fields[ident] = value
         return self
 
-    def get_field_raw(self, name: bytes) -> bytes:
-        """set field name to value"""
-        return self.fields[name]
+    def get_field_raw(self, ident: bytes) -> bytes:
+        """set field ident to value"""
+        return self.fields[ident]
+
+    def validate_struct(self) -> Any:
+        """validate structure"""
+
+        if not self.struct_valid:
+            raise exc.StructureError(self.entry_id)
+
+        return self
 
     @abstractmethod
-    def set_field(self, name: bytes, value: bytes) -> Any:
-        """set field name to value
+    def set_field(self, ident: bytes, value: bytes) -> Any:
+        """set field ident to value
 
         :rtype: Self"""
         return self  # for typing
 
     @abstractmethod
-    def get_field(self, name: bytes) -> bytes:
-        """get field by name"""
+    def get_field(self, ident: bytes) -> bytes:
+        """get field by ident"""
 
+    @property
     @abstractmethod
-    def validate_struct(self) -> Any:
-        """validate structure"""
-        return self  # for typing
+    def struct_valid(self) -> bool:
+        """check if the structure of the entry is valid"""
 
     @abstractmethod
     def __str__(self) -> str:
         """stringify entry"""
 
-    def __contains__(self, name: bytes) -> bool:
-        """does the entry contain `name` field"""
-        return name in self.fields
+    def __contains__(self, ident: bytes) -> bool:
+        """does the entry contain `ident` field"""
+        return ident in self.fields
 
-    def __setitem__(self, name: bytes, value: bytes) -> None:
+    def __setitem__(self, ident: bytes, value: bytes) -> None:
         """wrapper for `set_field`"""
-        self.set_field(name, value)
+        self.set_field(ident, value)
 
-    def __getitem__(self, name: bytes) -> bytes:
+    def __getitem__(self, ident: bytes) -> bytes:
         """wrapper for `get_field`"""
-        return self.get_field(name)
+        return self.get_field(ident)
 
 
 class PdbRawEntry(PdbEntry):
     """pdb entries raw entry"""
 
-    def set_field(self, name: bytes, value: bytes) -> "PdbRawEntry":
-        """set field name to value
+    def set_field(self, ident: bytes, value: bytes) -> "PdbRawEntry":
+        """set field ident to value
 
         :rtype: Self"""
-        return self.set_field_raw(name, value)
+        return self.set_field_raw(ident, value)
 
-    def get_field(self, name: bytes) -> bytes:
-        """get field by name"""
-        return self.get_field_raw(name)
+    def get_field(self, ident: bytes) -> bytes:
+        """get field by ident"""
+        return self.get_field_raw(ident)
 
-    def validate_struct(self) -> "PdbRawEntry":
-        """validate structure"""
-        return self
+    @property
+    def struct_valid(self) -> bool:
+        """check if the structure of the entry is valid"""
+        return True
 
     def __str__(self) -> str:
         """shows all fields in the entry"""
@@ -173,10 +185,10 @@ class PdbPwdEntry(PdbEntry):
     all_fields: Tuple[bytes, ...] = b"n", b"u", b"p", b"r"
     encrypted_fields: Tuple[bytes, ...] = b"u", b"p"
 
-    def _get_crypt(self, name: bytes) -> bytes:
+    def _get_crypt(self, ident: bytes) -> bytes:
         """get an encrypted value"""
         return crypt.decrypt_secure(
-            self.get_field_raw(name),
+            self.get_field_raw(ident),
             self.head.password,
             self.head.salt,
             self.head.hash_id,
@@ -185,10 +197,14 @@ class PdbPwdEntry(PdbEntry):
             self.head.kdf_passes,
         )
 
-    def _set_crypt(self, name: bytes, value: bytes) -> None:
+    def _set_crypt(self, ident: bytes, value: bytes) -> None:
         """set an encrypted value"""
+
+        if ident == b"\0" or len(ident) != 1:
+            raise exc.InvalidIdentifier(ident, self.entry_id)
+
         self.set_field_raw(
-            name,
+            ident,
             crypt.encrypt_secure(
                 value,
                 self.head.password,
@@ -210,7 +226,7 @@ class PdbPwdEntry(PdbEntry):
 
     @name.setter
     def name(self, value: bytes) -> None:
-        """set username"""
+        """set name"""
         self[b"n"] = value
 
     # username
@@ -229,55 +245,52 @@ class PdbPwdEntry(PdbEntry):
 
     @property
     def password(self) -> bytes:
-        """get name"""
+        """get password"""
         return self[b"p"]
 
     @password.setter
     def password(self, value: bytes) -> None:
-        """set username"""
+        """set password"""
         self[b"p"] = value
 
     # remark
 
     @property
     def remark(self) -> bytes:
-        """get name"""
+        """get remark"""
         return self[b"r"]
 
     @remark.setter
     def remark(self, value: bytes) -> None:
-        """set username"""
+        """set remark"""
         self[b"r"] = value
 
     def set_field(
         self,
-        name: bytes,
+        ident: bytes,
         value: bytes,
     ) -> "PdbPwdEntry":
-        """set field name to value"""
+        """set field ident to value"""
 
-        if name in self.encrypted_fields:
-            self._set_crypt(name, value)
+        if ident in self.encrypted_fields:
+            self._set_crypt(ident, value)
         else:
-            self.set_field_raw(name, value)
+            self.set_field_raw(ident, value)
 
         return self
 
-    def get_field(self, name: bytes) -> bytes:
-        """set field name to value"""
+    def get_field(self, ident: bytes) -> bytes:
+        """set field ident to value"""
         return (
-            self._get_crypt(name)
-            if name in self.encrypted_fields
-            else self.get_field_raw(name)
+            self._get_crypt(ident)
+            if ident in self.encrypted_fields
+            else self.get_field_raw(ident)
         )
 
-    def validate_struct(self) -> "PdbPwdEntry":
-        """validate structure"""
-
-        if not all(field in self.fields for field in PdbPwdEntry.all_fields):
-            raise exc.StructureError(self.entry_id)
-
-        return self
+    @property
+    def struct_valid(self) -> bool:
+        """check if the structure of the entry is valid"""
+        return all(field in self.fields for field in PdbPwdEntry.all_fields)
 
     def __str__(self) -> str:
         """shows all fields in the entry"""
