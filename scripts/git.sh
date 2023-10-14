@@ -11,7 +11,7 @@ main() {
     git commit -sa
     git push -u origin "$(git rev-parse --abbrev-ref HEAD)"
 
-    # ./scripts/pypi.sh
+    ./scripts/pypi.sh
 }
 
 main "$@"
