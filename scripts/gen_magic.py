@@ -16,7 +16,7 @@ def passes(txt: str, typ: str, offset: int, comma: str = ",") -> str:
 
     return f""">{offset} le{typ} x %u {txt}
 >>{offset} le{typ} =1 pass{comma}
->>{offset} le{typ} x passes{comma}"""
+>>{offset} le{typ} >1 passes{comma}"""
 
 
 def main() -> int:
@@ -41,7 +41,7 @@ def main() -> int:
 >8 ubyte x salt length of %u B,
 {passes('kdf', 'long', 9)}
 {passes('secure encryption', 'short', 13)}
-{passes('insecure encryption', 'short', 15, ' and')}
+{passes('insecure encryption', 'short', 15, ', and')}
 {passes('aes encryption', 'short', 17, '')}"""
         )
 
