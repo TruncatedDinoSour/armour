@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/pdb.xml">
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/pdb">
   <comment>pDB database</comment>
   <glob pattern="*.pdb"/>
   <alias type="application/x-pdb"/>
