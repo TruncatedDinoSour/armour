@@ -16,6 +16,7 @@ def passes(txt: str, typ: str, offset: int, comma: str = ",") -> str:
 
     return f""">{offset} le{typ} x %u {txt}
 >>{offset} le{typ} =1 pass{comma}
+>>{offset} le{typ} =0 passes{comma}
 >>{offset} le{typ} >1 passes{comma}"""
 
 

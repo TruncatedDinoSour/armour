@@ -10,8 +10,8 @@ import armour
 SALT: bytes = b"this is a salt used for security, in this test it will b static"
 PASSWORD: bytes = b"this is my very cool password :)"
 FILE: str = "pdb.pdb"
-HASH_ID: int = 1
-ISEC_PASSES: int = 1
+HASH_ID: int = 2
+ISEC_PASSES: int = 2
 
 
 def main() -> int:
