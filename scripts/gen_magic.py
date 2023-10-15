@@ -29,13 +29,13 @@ def main() -> int:
         fp.write(
             f"""0 string {repr(header.MAGIC)[2:-1]} pDB database
 >4 leshort x version %d,
->6 ubyte x hashing algorithm
 """
             + "\n".join(
-                f">>6 ubyte ={idx} {halg.name},"
+                f">>6 ubyte ={idx} {halg.name}"
                 for idx, halg in enumerate(armour.crypt.HASHES)
             )
             + f"""
+>6 ubyte x hashing algorithm,
 >>7 ubyte =0 worst compression,
 >>7 ubyte <22 compression level %u,
 >>7 ubyte =22 best compression,
