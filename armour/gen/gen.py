@@ -43,7 +43,7 @@ class PwGenerator:
         return (
             (self.min_lower, lambda: len(pw.lower) < self.min_lower),
             (self.min_upper, lambda: len(pw.upper) < self.min_upper),
-            (self.min_numbers, lambda: len(pw.numbers) < self.min_upper),
+            (self.min_numbers, lambda: len(pw.numbers) < self.min_numbers),
             (self.min_special, lambda: len(pw.special) < self.min_special),
             (self.min_alphabet, lambda: len(pw.alphabet) < self.min_alphabet),
             (
@@ -59,7 +59,7 @@ class PwGenerator:
             (self.max_weakness, lambda: pw.weakness() > self.max_weakness),
             (
                 self.min_actual_strength,
-                lambda: pw.actual_strength() < self.max_weakness,
+                lambda: pw.actual_strength() < self.min_actual_strength,
             ),
         )
 
