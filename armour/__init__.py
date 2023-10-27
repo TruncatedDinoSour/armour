@@ -6,6 +6,6 @@ from typing import Final, Tuple
 
 from . import crypt, gen, pdb
 
-__version__: Final[str] = "1.0.1"
+__version__: Final[str] = "1.0.2"
 
 __all__: Final[Tuple[str, ...]] = "__version__", "crypt", "gen", "pdb"

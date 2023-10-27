@@ -5,10 +5,12 @@
 import secrets
 import string
 from dataclasses import dataclass
-from typing import Callable, Optional, Tuple
+from typing import Callable, Final, Optional, SupportsInt, Tuple
 
 from ..crypt import RAND
 from .info import PasswordInfo
+
+D: Final[int] = -1
 
 
 @dataclass
@@ -20,21 +22,23 @@ class PwGenerator:
 
     length: int = 128
 
-    min_lower: int = -1
-    min_upper: int = -1
-    min_numbers: int = -1
-    min_special: int = -1
-    min_alphabet: int = -1
-    max_sequences: int = -1
-    max_common_patterns: int = -1
-    min_entropy: int = -1
-    min_strength: int = -1
-    max_weakness: int = -1
-    min_actual_strength: int = -1
+    min_lower: int = D
+    min_upper: int = D
+    min_numbers: int = D
+    min_special: int = D
+    min_alphabet: int = D
+    max_sequences: int = D
+    max_common_patterns: int = D
+    min_entropy: float = D
+    min_strength: float = D
+    max_weakness: float = D
+    min_actual_strength: float = D
 
     max_passes: Optional[int] = 1024
 
-    def checks(self, pw: PasswordInfo) -> Tuple[Tuple[int, Callable[..., bool]], ...]:
+    def checks(
+        self, pw: PasswordInfo
+    ) -> Tuple[Tuple[SupportsInt, Callable[..., bool]], ...]:
         """returns a tuple of checks"""
         return (
             (self.min_lower, lambda: len(pw.lower) < self.min_lower),
@@ -69,7 +73,7 @@ class PwGenerator:
         )
 
         for check, fn in self.checks(pw):
-            if check != -1 and fn():
+            if check != D and fn():
                 return None
 
         return pw

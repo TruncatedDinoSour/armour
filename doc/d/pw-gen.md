@@ -4,7 +4,7 @@ armour provides with tools to generate secure
 passwords based on criteria in `armour.gen.gen`
 
 to generate passwords based off criteria construct `PwGenerator` with
-ur criteria, keep in mind that values of `-1` suggest 'any', which are the
+ur criteria, keep in mind that values of `-1` ( `armour.gen.gen.D` constant ) suggest 'any', which are the
 defaults for `min_` and `max_` arguments
 
 `PwGenerator` takes in these arguments ( all optional ) :
