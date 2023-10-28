@@ -16,6 +16,8 @@ def main() -> int:
 
     print()
 
+    print(armour.gen.gen.PwGenerator(length=5192).gen())
+
     assert (
         armour.gen.gen.PwGenerator(min_actual_strength=100000000).gen() is None
     ), "no ."

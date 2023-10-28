@@ -169,19 +169,19 @@ class PasswordInfo:
         )
 
         return f"""
-length              {self.length}
-lowercase           {self.codes_to_str(self.lower) or '<none>'!r}
-uppercase           {self.codes_to_str(self.upper) or '<none>'!r}
-numbers             {self.codes_to_str(self.numbers) or '<none>'!r}
-special             {self.codes_to_str(self.special) or '<none>'!r}
-alphabet            {self.codes_to_str(self.alphabet) or '<none>'!r}
-    alphabet combos {self.alphabet_combos}
-sequences           {self.sequences_count()}
+length                  {self.length}
+lowercase               {self.codes_to_str(self.lower) or '<none>'!r}
+uppercase               {self.codes_to_str(self.upper) or '<none>'!r}
+numbers                 {self.codes_to_str(self.numbers) or '<none>'!r}
+special                 {self.codes_to_str(self.special) or '<none>'!r}
+alphabet                {self.codes_to_str(self.alphabet) or '<none>'!r}
+    alphabet combos hex {hex(self.alphabet_combos)}
+sequences               {self.sequences_count()}
     {sequences or '<none>'}
-common patterns     {self.common_patterns_count()}
+common patterns         {self.common_patterns_count()}
     {common_patterns or '<none>'}
-entropy bits        {self.entropy()}
-strength            {self.strength()}
-weakness            {self.weakness()}
-actual strength     {self.actual_strength()}
+entropy bits            {self.entropy()}
+strength                {self.strength()}
+weakness                {self.weakness()}
+actual strength         {self.actual_strength()}
 """.strip()
