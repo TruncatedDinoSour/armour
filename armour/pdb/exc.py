@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""exceptions"""
+"""exceptions
+
+if u add any exceptions please make any following arguments after first one
+optional due to multiprocessing weirdness"""
 
 from ..crypt import HASHES
 
@@ -8,7 +11,7 @@ from ..crypt import HASHES
 class InvalidMagicError(Exception):
     """raised when the pdb magic bytes are invalid"""
 
-    def __init__(self, magic: bytes, valid_magic: bytes) -> None:
+    def __init__(self, magic: bytes, valid_magic: bytes = b"") -> None:
         super().__init__(
             f"invalid pdb magic bytes -- {magic!r} ( should b {valid_magic!r} )"
         )
@@ -19,7 +22,7 @@ class InvalidMagicError(Exception):
 class VersionMismatch(Exception):
     """raised when the format of a pdb db is in one version when another is required"""
 
-    def __init__(self, cur_v: int, db_v: int) -> None:
+    def __init__(self, cur_v: int, db_v: int = 0) -> None:
         super().__init__(f"version mismatch -- {db_v!r} db, while parser needs {cur_v}")
         self.cur_v: int = cur_v
         self.db_v: int = db_v
@@ -28,7 +31,7 @@ class VersionMismatch(Exception):
 class DataIntegrityError(Exception):
     """invalid data hash"""
 
-    def __init__(self, msg: str, h: bytes) -> None:
+    def __init__(self, msg: str, h: bytes = b"") -> None:
         super().__init__(msg)
         self.h: bytes = h
 
@@ -66,7 +69,7 @@ class StructureError(Exception):
 class InvalidIdentifier(Exception):
     """raised when the identifier is invalid"""
 
-    def __init__(self, ident: bytes, entry_id: int) -> None:
+    def __init__(self, ident: bytes, entry_id: int = 0) -> None:
         super().__init__(f"identifier {ident!r} of entry #{entry_id} is invalid")
 
         self.ident: bytes = ident

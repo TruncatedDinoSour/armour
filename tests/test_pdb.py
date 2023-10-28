@@ -55,17 +55,18 @@ def main() -> int:
             p,
             fields={
                 b"n": f"hello world ! {armour.crypt.RAND.randint(-100, 100)} \
-{armour.crypt.RAND.random()}".encode(),
+{armour.crypt.RAND.random()} {len(e.ents)}".encode(),
                 b"p": b"my password 124",
                 b"r": b"this is my remark :)",
                 b"u": b"super secret user",
             },
         ).rehash()
     )
+    pwe.username = b"hi"
 
     print(pwe.username)
     # pwe[b"u"] = b"hello !"
-    # pwe.rehash()
+    pwe.rehash()
     # print(pwe.get_field_raw(b"u"))
 
     print()

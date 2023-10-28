@@ -2,12 +2,19 @@
 # -*- coding: utf-8 -*-
 """entries"""
 
+import multiprocessing as mp
 from abc import ABC, abstractmethod
+from contextlib import closing
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 from .. import crypt
 from . import exc, header, s
+
+
+def ___reval___(e: "PdbEntry") -> "PdbEntry":
+    """revalidate entry ( do not use this, this is used in `gather` )"""
+    return e.revalidate().validate_struct()
 
 
 class PdbEntry(ABC):
@@ -314,8 +321,9 @@ class PdbEntries:
     def gather(
         self,
         entry_t: Type[PdbEntry] = PdbPwdEntry,
+        jobs: Optional[int] = None,
     ) -> "PdbEntries":
-        """gather all entries from the header"""
+        """gather all entries from the header, uses multiprocessing"""
 
         self.head.decrypt()
 
@@ -323,6 +331,7 @@ class PdbEntries:
             return self
 
         b: BytesIO = BytesIO(self.head.entries)
+        ents: List[PdbEntry] = []
 
         while (h := b.read(self.head.ds())) != b"":
             e: PdbEntry = entry_t(self.head, h)
@@ -330,7 +339,10 @@ class PdbEntries:
             while (ident := b.read(s.BL)) != b"\0":
                 e.set_field_raw(ident, b.read(s.sunpack(s.L, b)))
 
-            self.ents.append(e.revalidate().validate_struct())
+            ents.append(e)
+
+        with closing(mp.Pool(processes=jobs)) as p:
+            self.ents.extend(p.map(___reval___, ents))
 
         return self
 
