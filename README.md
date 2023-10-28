@@ -13,3 +13,11 @@ located at [/scripts/application-pdb.xml](/scripts/application-pdb.xml)
 # documentation
 
 see the [/doc/](/doc/) folder
+
+# userland tools
+
+see [pwdtools](https://ari-web.xyz/gh/pwdtools)
+
+```sh
+pip install pwdtools
+````
