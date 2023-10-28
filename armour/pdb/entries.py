@@ -334,6 +334,11 @@ class PdbEntries:
 
         return self
 
+    def clear(self) -> "PdbEntries":
+        """clears all entries"""
+        self.ents.clear()
+        return self
+
     def add_entry(self, entry: PdbEntry) -> "PdbEntries":
         """add entry"""
 
