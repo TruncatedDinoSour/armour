@@ -4,6 +4,7 @@
 
 import secrets
 from base64 import b85encode
+from subprocess import check_output
 from typing import Dict
 from warnings import filterwarnings as filter_warnings
 
@@ -18,6 +19,14 @@ def main() -> int:
         "b85_shuf": 0,
         "b85_norm": 0,
     }
+
+    try:
+        check_output(["pwgen"])
+        print("pwgen support enabled")
+        scores["pwgen"] = 0
+        pwgok: bool = True
+    except FileNotFoundError:
+        pwgok: bool = False
 
     runs: int = 2048
     pw_len: int = 2048
@@ -55,12 +64,17 @@ def main() -> int:
             "b85_norm": armour.gen.info.PasswordInfo(b85_norm).actual_strength(),
         }
 
+        if pwgok:
+            strengths["pwgen"] = armour.gen.info.PasswordInfo(
+                check_output(["pwgen", str(pw_len), "1"]).strip()
+            ).actual_strength()
+
         w: str = max(strengths, key=strengths.get)  # type: ignore
 
         print(
             f"{idx + 1:<4}",
             f"{(idx + 1) / runs * 100:<6.2f}%",
-            f"{str(strengths):>96}",
+            f"{str(strengths):>128}",
             f"{w:>8}",  # type: ignore
         )
 
@@ -69,7 +83,14 @@ def main() -> int:
     print()
 
     for k, v in scores.items():
-        print(k, v, v / runs * 100)
+        print(
+            k,
+            "with",
+            v,
+            "win( s ) or",
+            v / runs * 100,
+            "percent of the runs won",
+        )
 
     print()
 
@@ -82,7 +103,12 @@ def main() -> int:
         scores[w],  # type: ignore
         "or",
         scores[w] / runs * 100,  # type: ignore
-        "percent of the wins",
+        "percent of the runs won",
+    )
+
+    print(
+        "note : you can change the default armour values to "
+        "generate even better passwords"
     )
 
     # exits with 1 if winner is not `armour`

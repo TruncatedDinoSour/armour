@@ -106,8 +106,7 @@ class PasswordInfo:
 
                     common_here_pattern += bytes((a,))
 
-                if len(common_here_pattern) > common_length:
-                    common_length = len(common_here_pattern)
+                common_length = max(common_length, len(common_here_pattern))
 
             if common_length > 2:
                 patterns_list.append((idx, idx + common_length))

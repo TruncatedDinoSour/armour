@@ -25,14 +25,15 @@ characters and cryptographically secure bytes should be very random and unpredic
 i've even made a script to demonstrate that :
 
 ```
-armour 1483 72.412109375
-b85_shuf 272 13.28125
-b85_norm 293 14.306640625
+armour with 1498 win( s ) or 73.14453125 percent of the runs won
+b85_shuf with 272 win( s ) or 13.28125 percent of the runs won
+b85_norm with 272 win( s ) or 13.28125 percent of the runs won
+pwgen with 6 win( s ) or 0.29296875 percent of the runs won
 
-winner is armour with score 1483 or 72.412109375 percent of the wins
+winner is armour with score 1498 or 73.14453125 percent of the runs won
 ```
 
-script is located at [tests/proof.py](/tests/proof.py), it tests password strengths for same length passwords
+script is located at [tests/test_proof.py](/tests/test_proof.py), it tests password strengths for same length passwords
 ( by default 2048 runs and 2048 character length passwords )
 
 # magic file
