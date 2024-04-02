@@ -3,14 +3,14 @@
 **Note: This version of pDB is still in early alpha stages. Do not implement this or use this format yet in production.**
 
 This is the official pDB specification document describing the exact structure of the pDB (version 1) (pDBv1)
-file format. Its purpose is to serve as detailed documentation for any implementations of this format,
-SDKs, clients, and other pieces of code utilizing it.
+file format. Its purpose is to serve as detailed documentation for any implementations of this format, such as SDKs,
+clients and other pieces of code utilizing it.
 
 ## Introduction
 
-pDB ([p]assword [d]ata[b]ase) is a new password database format which mainly uses little-endian data focused on security, entropy,
-and data integrity. Its focus audience are individuals and entities who are concerned about their
-data security & are willing to put resources into it.
+pDB ([p]assword [d]ata[b]ase) is a new password database format which mainly uses little-endian binary data.
+It is focused on security, entropy, and data integrity. Its main audience are individuals and entities
+who are concerned about their data security & are willing to put resources into it.
 
 If you're looking for something lightweight and small - pDB is not for you (even though it can be configured to be
 fairly small and lightweight, but pDB doesn't prioritize that), you're most likely better off storing
@@ -20,38 +20,41 @@ pDBv1 is a successor to pDBv0 which was a successor to the original ASCIIpDB for
 a lot better than pDBv0, such as:
 
 -   Enhanced security
-    -   Improve how hashing is handled
+    -   Improve how hashing functions are handled
     -   Reorder hashing algorithms by security
     -   Introduces more secure encryption algorithms like ChaCha20
-    -   Pepper bytes: Added 512 more bits of security
+    -   Added 512 more bits of security by adding pepper bytes
     -   Improve the handling of encryption
     -   Introduce more entropy sources
 -   Flexibility and Customization
     -   Added more parameters to customize
     -   Made the format more flexible and dynamic
-    -   Simplify parts of the structure, allowing the format to be more flexible
-    -   Added support for dynamic entries and chunking
+    -   Simplify parts of the structure, allowing the format to be more flexible and dynamic
+    -   Added support for dynamic entries by chunking
 -   Chunking Mechanism
     -   Introduce chunking to organize and store entities to improve the performance, scalability,
         and structure of the database
 -   Metadata
     -   Introduce metadata to the format
     -   Have a human-readable structure for the metadata
-    -   Add standard metadata keys
+    -   Add standard metadata keys, such as contact information
 -   Improved Validation and Integrity
-    -   Enhanced the validation criteria, add a comprehensive list, and ensure the integrity
+    -   Enhanced the validation criteria, add a comprehensive list of conditions, and ensure the integrity
         and security of the database
-    -   Add the crypto check mechanism to check and validate cryptography
+    -   Add the "crypto check" mechanism to check and validate cryptography,
 -   Clear Documentation and Standardization
     -   Introduce pseudocode to improve the readability of the documentation
     -   Make the standard more detailed, allowing developers to implement it effectively
     -   Add standardized file types
     -   Use standard language, features, and algorithms
-    -   Define common algorithms used to manage the algorithm
+    -   Define common algorithms used to manage the database
 
 ## Clients
 
--   [Stable] Pwdmgr client From Pwdtools By Ari Archer \<<ari@ari.lt>\> License GPL-3.0-or-later: <https://ari.lt/gh/pwdtools>
+This section includes a list of SDKs, libraries, user interfaces, etc. (collectively called "clients") which support the pDBv1 format.
+
+-   [Stable, Official] Armour library From Armour By Ari Archer \<<ari@ari.lt>\> License GPL-3.0-or-later: <https://ari.lt/gh/armour>
+    -   [Stable, Official] Pwdmgr client From Pwdtools By Ari Archer \<<ari@ari.lt>\> License GPL-3.0-or-later: <https://ari.lt/gh/pwdtools>
 
 ## File type
 
@@ -78,13 +81,12 @@ This section describes the format for the abstract structure of the full pDB (ve
 Its layout includes the sizes of sections, the types, and the [format specifiers](https://docs.micropython.org/en/latest/library/struct.html)
 for the binary data, along with what the section means.
 
-Whenever bytes are mentioned, assume the bytes are [Little Endian](https://en.wikipedia.org/wiki/Endianness#Little), unless specified otherwise. pDB
-is a format which works with primarily little-endian data.
+Whenever bytes are mentioned, assume the bytes are [Little Endian](https://en.wikipedia.org/wiki/Endianness#Little), unless specified otherwise.
+pDB is a format which works with primarily little-endian data.
 (for example 2 little endian bytes (`uint16_t`, `<H`) representing 7621: `0xC5 0x1D`, and 1: `0x01 0x00`)
 
-Note: A virtual section is a section separated by relation to one another (say magic bytes & version), but not
-literally separated in the format, meaning if you want a uniform list of the format, you can just ignore
-the "Virtual Section" headers.
+Note: A virtual section is a section in the format separated by logical links, but is not literally separated in the format.
+If you want a uniform list describing the format, feel free to ignore the "Virtual section" headers.
 
 ### Virtual section: Identifier
 
@@ -102,7 +104,7 @@ See: <https://en.wikipedia.org/wiki/File_format#Magic_number>
 See: <https://en.wikipedia.org/wiki/Zstd>
 
 -   `uint8_t zstd_compression_level` (1 byte, `<B`) - The ZSTD compression level (from 0 to 22).
-    -   If changed, a layer of encryption would have to be re-encrypted
+    -   If changed, a layer of encryption would have to be re-encrypted along with the "crypto check" section
 
 ### Virtual section: Hashing and key derivation
 
@@ -110,7 +112,7 @@ See: <https://en.wikipedia.org/wiki/PBKDF2>, <https://en.wikipedia.org/wiki/Entr
 
 Hashing & how pDBv1 handles it is discussed below.
 
--   `uint8_t hash_function_id` (1 byte, `<B`) - The hash function ID to identify the hashing function which to use across the database.
+-   `uint8_t hash_function_id` (1 byte, `<B`) - The hashing function ID to identify the hashing function which to use across the database.
     -   _Technically_ a mutable value, but the whole database would have to be rehashed and re-encrypted
     -   Supported hashes:
         -   `0` - SHA3_512 (slowest, but most secure)
@@ -128,9 +130,9 @@ Hashing & how pDBv1 handles it is discussed below.
         -   `12` - SHA1
         -   `13` - SM3
         -   `14` - MD5 (insecure, although MD5 is fast)
--   `uint8_t hash_salt_length` (1 byte, `<B`) - When using the configured hash function, how long should the randomly-generated salt be?
+-   `uint8_t salt_size` (1 byte, `<B`) - Whenever salting values (such as hashes or keys), how long the salt should be?
 -   `uint64_t pbkdf2_hmac_passes` (4 bytes, `<L`) - The passes for `PBKDF2` key derivation function with the `HMAC` pseudorandom function.
-    -   The larger the value, the more work a computer would need to do to derive a key.
+    -   The larger the value, the more work a computer would need to do to derive a key, although the derived key is more secure.
 -   `uint8_t pepper[64]` (64 bytes, `<64B`) - 512 bits of cryptographically secure information (64 cryptographically secure bytes).
     -   Always a constant value since database creation
 
@@ -151,24 +153,25 @@ Chunk size & concept of Chunks is discussed below.
 -   `uint8_t chunk_identifier_size` (1 byte, `<B`) - The size of a chunk identifier in bytes.
     -   Keep in mind the maximum entries you can have in a pDB database is `f(x)=2^{8x}-1` where `x` is `chunk_identifier_size`
 -   `uint16_t chunk_size` (2 bytes, `<H`) - The chunk size of encrypted entries in the database.
-    -   `chunk_size` should be larger then `chunk_identifier_size`
+    -   `chunk_size` must be larger then `chunk_identifier_size`
 
 ### Virtual section: Metadata
 
-Metadata and how pDBv1 stores and handles it is discussed below, along with general precautions.
+Metadata and how pDBv1 stores and handles it is discussed below. Do not store any sensitive information
+in this section as it is stored in **plain text**.
 
 -   `uint8_t metadata_hash[secure_hash_size]` (`secure_hash_size` bytes, `<L`) - The hash of of the metadata section
     (including the size and metadata).
 -   `uint64_t metadata_size` (4 bytes, `<L`) - The size of the metadata blob following it.
 -   `uint8_t metadata[metadata_size]` (`metadata_size` bytes, `<{metadata_size}B`) - The metadata of the database.
-    -   This section may be cleared at any moment and you should not use it to store anything sensitive and persistent.
-        The data in this section is stored in the database as **plain text**
+    -   This section may be cleared at any moment and you should not use it to store anything sensitive or persistent.
+        The data in this section is stored in the database as **plain text**.
 
 ### Virtual section: Integrity
 
 -   `uint8_t crypto_check_hash[secure_hash_size]` (`secure_hash_size` bytes, `<L`) - The hash of the crypto check. (including the size)
 -   `uint64_t crypto_check_size` - The size of the `crypto_check` section following it.
--   `uint8_t crypto_check[crypto_check_size]` - Any random data encrypted using all possibly encryption methods (see crypto check workflow below)
+-   `uint8_t crypto_check[crypto_check_size]` - 196 random bytes encrypted using all possible encryption methods and compression. (see crypto check workflow below)
 -   `uint8_t header_hash[secure_hash_size]` (`secure_hash_size` bytes, `<L`) - The hash of the whole header before it.
 
 ### Virtual section: Dynamic data (chunked entries)
@@ -181,16 +184,13 @@ Entry structure is discussed below.
 
 This subsection describes the validation criteria for a pDB database to be considered valid.
 
-Optional to check:
+The following conditions must be satisfied:
 
 -   The magic bytes are `0x70 0x44 0x42 0xf6`
-
-Required to check:
-
 -   The version of the database is supported by the pDB client
 -   The ZSTD compression level is below 23 (22 is max)
 -   The hashing function ID is supported by the client, and is available
--   `hash_salt_length` is at least 1
+-   `salt_size` is at least 1
 -   `pbkdf2_hmac_passes` is at least 1
 -   `rc4_crypto_passes` is at least 1
 -   `chacha20_crypto_passes` is at least 1
@@ -211,20 +211,24 @@ in this format as that jeopardizes the security of it.
 Do not implement this format using non-cryptographically-secure number generators.
 Prioritize randomness, entropy, and unpredictability wherever possible.
 
+Implementations of the cryptographically secure functions may differ but the result\
+must stay the same - almost unpredictable, cryptographically secure random
+numbers.
+
 See: <https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator>, <https://manpages.ubuntu.com/manpages/focal/man3/RAND_pseudo_bytes.3ssl.html> (`RAND_bytes(3)`)
 
 ## Hashing
 
-pDBv1 usually doesn't hash functions on their own, it actually combines your has function with the PBKDF2 key
+pDBv1 usually doesn't hash functions on their own, it actually combines the hashing function with the PBKDF2 key
 derivation function to generate a so to say "authenticated" hash. In pseudocode:
 
     bytes hash(HashAlgorithm algorithm, bytes data) {
-        bytes salt = random(hash_salt_length);
+        bytes salt = random(salt_size);
 
         bytes key = PBKDF2(
             prf=HMAC,
             algorithm=algorithm,
-            length=algorithm.digest_size + hash_salt_length,
+            length=algorithm.digest_size + salt_size,
             salt=salt + slt_file,
             iterations=pbkdf2_hmac_passes,
         ).derive(databse_password);
@@ -241,12 +245,12 @@ derivation function to generate a so to say "authenticated" hash. In pseudocode:
 
 In other words:
 
--   Generate a `hash_salt_length` salt
+-   Generate a `salt_size` salt
 -   Using PBKDF2(HMAC, algorihm, generated_salt + slt_file, pbkdf2_hmac_passes) derive a `secure_hash_size` key from the database
     password
--   Pass the derived key, along with the algorithm to HMAC
+-   Pass the derived key, along with the hashing algorithm to HMAC
 -   Pass the `data + pepper_bytes` to the HMAC function
--   Return `generated_salt + hmac_digest`
+-   Return `generated_salt + hmac_digest` - this is our final hash
 
 ## Cryptography
 
@@ -265,12 +269,12 @@ In pseudocode, this is how pDBv1 handles RC4 encryption:
             # This will use the hash function *directly*
             bytes key = hash_by_hash_function_id(0, a + pepper + database_password + slt_file + p);
 
-            data = p + a + rc4_crypto(data, key);
+            data = rc4_crypto(data, key);
+
+            data = p + a + data;
         }
 
-        key = hash_by_hash_function_id(0, pepper + database_password + slt_file);
-
-        return rc4_crypto(data, key);
+        return data;
     }
 
 In other words,
@@ -279,12 +283,9 @@ In other words,
 -   Generate another 8 random bytes, call it `a`
 -   Hash `a + pepper + database_password + slt_file + p` by directly using the most secure hashing
     function available (hash_id=0), this is our RC4 key
--   Encrypt the data
--   Prepend `p` to data and append `a` to data, assume we reassigned `data = p + data + a`
+-   Encrypt the data, assume we reassign `data = encrypt_using_rc4(data)` now
+-   Prepend `p` and `a` to the data, assume we reassign it: `data = p + a + data`
 -   Repeat this process `rc4_crypto_passes` times
--   Hash `pepper + database_password + slt_file` by directly using the most secure hashing
-    function available (hash_id=0), this is our final layer of RC4 key
--   Encrypt the final data using that key & return it
 
 ### ChaCha20
 
@@ -294,7 +295,7 @@ it in pseudocode:
     bytes chacha20(bytes data) {
         for (size_t idx = 0; idx < chacha20_crypto_passes; ++idx) {
             bytes nonce = random(16);
-            bytes salt = random(hash_salt_length);
+            bytes salt = random(salt_size);
 
             data = pepper + data;
 
@@ -316,25 +317,25 @@ it in pseudocode:
 
 In other words,
 
--   Generate a 16-byte nonce
--   Generate a `hash_salt_length`-byte nonce
+-   Generate a 16-byte random nonce
+-   Generate a `salt_size`-byte random salt
 -   Prepend `pepper` to the data, assume `data = pepper + data` now
--   Derive key using PBKDF2(HMAC) passing the generated salt Concatenated with the salt file, configured hashing algorithm to PBKDF2,
+-   Derive key using PBKDF2(HMAC) passing the generated salt concatenated with the salt file, configured hashing algorithm to PBKDF2,
     and deriving from the database password
--   Pass the data to chacha20 along with the derived key. Assume `data` was reassigned
+-   Pass the data to chacha20 along with the derived key. Assume `data` was reassigned to the encrypted data
 -   Concatenate `nonce + salt + data` and reassign `data`
 -   Repeat this process `chacha20_crypto_passes` times
 
 ### AES
 
-AES is used as a final layer of encryption, it is a slow, but secure encryption algorihm. This is
+AES in GCM mode is used as a final layer of encryption, it is a slow, but secure encryption algorihm. This is
 how pDBv1 utilizes it:
 
     bytes aes(bytes data) {
         data = random(64) + data + pepper;
 
         for (size_t idx = 0; idx < aes_crypto_passes; ++idx) {
-            bytes salt = random(hash_salt_length);
+            bytes salt = random(salt_size);
 
             bytes key = PBKDF2(
                 prf=HMAC,
@@ -364,20 +365,20 @@ In other words,
 
 -   Before the main loop, prepend 64 random bytes to the data, and append the `pepper` bytes
 -   Now, start the main loop
--   Generate `hash_salt_length` byte salt
--   Derive a key using PBKDF2 with salt being `salt + slt_file` from the database password
+-   Generate `salt_size` byte salt
+-   Derive a key using PBKDF2 as before with salt being `generated_salt + slt_file` from the database password
 -   Generate a random 12-byte initialization vector (IV)
 -   Encrypt data using AES in GCM mode passing the derived key and the generated IV, assume we
-    reassigned `data = aesgcm_encrypt(data)`
+    reassigned `data = aesgcm_encrypt(data)` now
 -   Reassign `data = generated_salt + IV + data + aes.tag`
 -   Repeat this `aes_crypto_passes` times
 
 ## Metadata
 
-The metadata section is a **plain-text** section of a pDB database in which you can
-store any data to provide context for pDB clients or users of the database.
-You should not store any sensitive information in the metadata section as it can be
-read (although not modified) by anyone.
+The metadata section is a **plain text** section of a pDB database in which you can
+store any data to provide context for pDB clients or users of the database or leave contact
+information in case your database got leaked. You should not store any sensitive
+information in the metadata section as it can be read (although not modified) by anyone.
 
 Metadata is a simple `Key:Value` store which can have duplicating keys, such as:
 
@@ -389,15 +390,13 @@ Metadata is a simple `Key:Value` store which can have duplicating keys, such as:
     huihtuierhtiuhjiuehui
     ^ this is an invalid key-value pair
 
-Keys cannot include semicolons or newlines, while values cannot include newlines. If you need to use
+Keys cannot include semicolons or newlines, and values cannot include newlines. If you need to use
 illegal characters use [Percent encoding](https://en.wikipedia.org/wiki/Percent-encoding)
 
 Everything after the first `:` is considered a value, and a newline starts a new `Key:Value` pair.
-Values may be empty (in case of `Key:`).
+Values may be empty (in case of `Key:` (a newline right after the semicolon or the end of the metadata section)).
 
-Keys may repeat.
-
-Repeating values may get stored in an array if parsed, for example:
+Keys may repeat. Repeating key values may get stored in an array if parsed by the client, for example:
 
 ```json
 {
@@ -407,16 +406,16 @@ Repeating values may get stored in an array if parsed, for example:
 }
 ```
 
-And any invalid (or empty) lines will get ignored.
+And any invalid (or empty) lines should be ignored.
 
 ### Standard keys and values
 
-This section will give a sample metadata blob in the following format:
+This subsection will give a sample metadata blob in the following format:
 
     Key:Value (note)
 
 When using the metadata key-value pairs described in this section, you should
-ignore the `(note)`.
+ignore the `(note)` and just use the `Key:Value`.
 
     Client:Pwdmgr client From Pwdtools By Ari Archer <ari@ari.lt> Version 1.0.0 License GPL-3.0-or-later (See Client ID structure below)
     Creation:2024-04-02 22:16:54 (The creation date of the database, YYYY-MM-DD hh:mm:ss)
@@ -432,16 +431,16 @@ ignore the `(note)`.
 
 The Client ID (`Client` metadata key) has the following structure:
 
-    <client name> From <project, package, etc> By <author's name> <<author's email>> Version <client version> License <SPDX license identifier>
+    <client name> <client type (library, SDK, client (interface), ...)> From <project, package, etc> By <author's name> <<author's email>> Version <client version> License <SPDX license identifier>
 
 There's no other structure for it.
 
 ## Crypto check
 
-Crypto check is just 128 random bytes that get "compressed" (will usually end up in larger input) using ZSTD,
+The crypto check section is just 196 random bytes that get "compressed" (will usually end up in larger output) using ZSTD,
 then passed to RC4, ChaCha20, and then AES. In pseudocode it'd look like this:
 
-    AES(ChaCha20(RC4(ztsd(random(128)))))
+    AES(ChaCha20(RC4(ztsd(random(196)))))
 
 This section is used for validating encryption and compression.
 
@@ -449,51 +448,52 @@ This section is used for validating encryption and compression.
 
 This section discusses the general structure of entries ("Simple Entries"). You cannot use them
 directly in the database, but you have to first construct this type ("Simple") of entry to
-construct the entry type you _can_ use directly in the database - a chunked entry (chunking is discussed below)
+construct the entry type you _can_ use directly in the database - a chunked ("Complex") entry (chunking is discussed below)
 
 Entries have the following structure outline:
 
-    [hash] [hash][ident][size][data] [hash][ident][size][data] ...
+    [hash] [dhash][ident][size][data] [dhash][ident][size][data] ...
     [null]
-    [hash] [hash][ident][size][data] ...
+    [hash] [dhash][ident][size][data] ...
     ...
 
-Ignore the spaces.
+(Ignore the spaces, they are only in the outline to make it clear where what belongs.)
 
 Firstly, an entry begins with a hash:
 
 -   `uint8_t hash[secure_hash_size]` (`<{secure_hash_size}B`) -- The hash of the rest of the entry (including all identifiers, sizes, hashes, and data)
 
-Then you can add fields to the entry, there can (and probably should) be multiple fields in an
-entry, you just repeat the same structure over and over again. This is how it looks:
+Then you can add fields to the entry, there can (and probably should) be multiple fields,
+you just repeat the same structure over and over again. This is how it looks:
 
--   `uint8_t ident` (`<B`) -- The entry field identifier. May be NULL. The identifiers cannot repeat, and if they do - the latest one's value dominates (like a hashmap)
+-   `uint8_t ident` (`<B`) -- The entry field identifier (may be NULL, this does not mean a new entry if the NULL byte is used as an identifier).
+    The identifiers cannot repeat, and if they do - the latest one's value dominates (like a [Hash table](https://en.wikipedia.org/wiki/Hash_table))
 -   `uint64_t size` (`<L`) -- The size of the entry's data
 -   `uint8_t dhash[hash_size]` (`<{hash_size}B`) -- The hash of the entry's data
 -   `uint8_t data[size]` (`<{size}B`) -- The data the field holds
 
 Standard fields include:
 
--   `t`: of Type the entry (plain text)
+-   `t`: Type of the entry (plain text)
     -   `p`: Password store
     -   `t`: TOTP store (some clients may use this type to generate & copy TOTP codes instead of the TOTP key)
--   `n`: Name of the entry
--   `r`: Remark of the entry (RC4 encrypted, **DO NOT STORE SENSITIVE INFO IN REMARKS**)
+-   `n`: Name of the entry (plain text)
+-   `r`: Remark of the entry (RC4 encrypted, **DO NOT STORE SENSITIVE INFORMATION IN REMARKS**)
 -   `e`: Encrypted section of the entry (an encrypted and compressed entry, see encryption subsection below)
     -   `u`: Username
     -   `p`: Private value of the entry (password, TOTP key)
 
 The only reserved fields are the lowercase ASCII letters (26 identifiers), so use them with caution.
-Other identifiers (any characters from 0x00 to 0xff, excluding lowercase ASCII), you can use
+Other identifiers (any characters from 0x00 to 0xff, excluding lowercase ASCII (`[a-z]` in Regex)), you can use
 to set custom fields.
 
-To repeat: This is just a Simple Entry. You need to chunk it first to add it to the database. Chunking
-is discussed below.
+**To repeat**: This is just a Simple Entry. You need to chunk it first to add it to the database. Chunking
+and chunking algorithms are discussed below.
 
 ### Encryption
 
-The `e` field includes encrypted data of the entry. The value of `e` is actually an encrypted simple entry.
-All fields of that simple entry are encrypted using ChaCha20. On the other hand, the whole entry goes through
+The `e` field includes encrypted data of the entry. The value of `e` is actually another encrypted simple entry.
+All fields of that simple entry are encrypted using ChaCha20, while the whole entry goes through
 a whole encryption process: firstly it gets encrypted using RC4, then ChaCha20, after which the output
 is quite big so we pass the output to ZSTD. And then the output of ZSTD is passed to AES.
 
@@ -514,16 +514,17 @@ The entry must satisfy the following conditions:
 -   The structure of the entry and fields are valid
 -   The hash of the entry is valid
 -   The hashes of all fields are valid
+-   The encrypted part (`e`) passes the same criteria
 
 ## Chunking
 
-Chunking is used to construct a Complex or Chunked entry, which is a required part of modifying pDB.
+Chunking is used to construct a Chunked ("Complex") entry, which is an essential part of working with pDB.
 
 The entries database looks something like this in real world cases
 
     [chunk ID][entry chunk] [NULL chunk id][empty chunk] [chunk ID][entry chunk] [chunk ID][entry chunk] [chunk ID][entry chunk] [NULL chunk id][empty chunk] [NULL chunk id][empty chunk] [chunk ID][entry chunk] ...
 
-It is a continuous stream of taken and empty chunks.
+It is a fragmented stream of taken and empty chunks.
 
 This is how you would construct a complex entry:
 
@@ -531,12 +532,17 @@ This is how you would construct a complex entry:
 2. Split the entry into `chunk_size` chunks
 3. Pad the last chunk to exactly `chunk_size` bytes with any data
    (preferably completely random data, for entropy uses)
-4. Prepend a unique `chunk_identifier_size` byte chunk identifier to every single block
-    - Mind you that a chunk identifier cannot be all NULL bytes.
-      A chunk identifier of all NULL bytes signifies an empty chunk.
+4. Prepend a unique `chunk_identifier_size` byte chunk identifier to every single chunk
+    - Mind you that a chunk identifier cannot be all NULL bytes (for example a 4 byte chunk identifier cannot be just `0x00 0x00 0x00 0x00`).
+      A chunk identifier of all NULL bytes signifies an **empty chunk**.
 
 You have now successfully constructed a complex entry - an array of chunks. Next you will need to
-use some sort of algorithm to insert the chunk into the database, for instance:
+use some sort of algorithm to insert the chunk into the database.
+Couple of example algorithms are discussed in the subsections below.
+
+Note that the chunks need to be in order globally, they just don't need to be next to one another.
+
+### Algorithm #1: O(n^2)
 
 -   Loop through all chunks in the database and check if there's any available
     empty chunks (chunks where the chunk identifier is all NULLs)
@@ -544,7 +550,7 @@ use some sort of algorithm to insert the chunk into the database, for instance:
 -   Do this until you either don't have chunks left or you're out of empty space
 -   If you still have chunks, but are out of empty space, append your chunks to the database
 
-In other words,
+In other words:
 
     Chunk chunks[] = {...};
 
@@ -562,23 +568,45 @@ In other words,
             pdb.chunks.append(new_chunk);
     }
 
-A way you could improve this is by indexing all empty chunks and looking them up in constant (O(1))
-time, so you could have an algorithm of O(n) instead of O(n^2). This is not the only way to this.
+### Algorithm #2: O(n)
 
-(Note that the chunks need to be in order globally. They just don't need to be next to one another.)
+-   Have an ordered index (array) of empty chunks in an array
+    -   For purposes of this algorithm, let's say index [0] is the
+        chunk closest to the end of the database and last index
+        is closest to the header (this is how you'd work with the
+        array structure while parsing pDB most likely)
+    -   If you have it in reverse order, modify the algorithm accordingly
+-   Loop through the chunks of the entry
+-   If available, pop off the last element of the index
+-   If unavailable, append the chunk to the end of the database
+
+In other words:
+
+    Chunk chunks[] = {...};
+
+    for (Chunk new_chunk in chunks)
+        if (pdb.emtpy_chunks)
+            pdb.emtpy_chunks.pop().replace(new_chunk);
+        else
+            pdb.chunks.append(new_chunk);
+
+These algorithms are not the only available ones, just a couple of very simple
+chunk management algorithms which handle fragmentation well.
 
 You have now successfully inserted a chunk into the database.
+
+### Chunk removal
 
 To remove a chunk you just replace its chunk identifier with all NULLs and possibly overwrite
 the data the chunk is storing with either all NULLs or completely random data (which is preferred).
 
 ## Security, clients & questions
 
-Email <ari@ari.lt> for any questions or security concerns you have about pDBv1 format. I will be sure
+Email <ari@ari.lt> for any questions or security concerns you have about the pDBv1 format. I will be sure
 to either update the format, answer your questions, or start a new version of pDB fixing the problems
 pointed out.
 
-You are also welcome to create new clients and either submit a pull request, or let me know on email.
+You are also welcome to create new clients and either submit a pull request, or let me know through email.
 Please do note that creating a client is an extremely complex task, and your client will be marked
 as Beta until it has been tested by time and it is clear that the development of the client is going
 well.
