@@ -25,6 +25,7 @@ pDBv1 is built to solve some issues of pDBv0, whilst sticking to the original pD
 -   Improve the structure and standard of entries
 -   Enhance the approach to entry encryption
 -   Refine the validation criteria
+-   Added entry chunking
 
 ## File extensions
 
@@ -62,6 +63,8 @@ Format of pDB is as follows:
 -   `uint8_t zstd_compression_level` (1 little endian byte, `<B`) -- The ZSTD compression level (from 0 to 22).
 -   `uint8_t hash_salt_length` (1 little endian byte, `<B`) -- When using the configured hash function, how long should the randomly-generated salt be?
 -   `uint64_t pbkdf2_hmac_passes` (4 little endian bytes, `<L`) -- The passes for `PBKDF2` with the `HMAC` pseudorandom function, key derivation function. (See: <https://en.wikipedia.org/wiki/PBKDF2>)
+-   `uint16_t block_size` (2 little endian bytes, `<H`) -- The block size of entries in the database. Larger block size will be more wasteful but less work, on the other hand a smaller block size will be less wasteful, but more work.
+-   `uint8_t block_identifier_size` (1 little endian byte, `<B`) -- The size of a block identifier in bytes. Keep in mind the maximum entries you can have is `2 ** (8 * block_identifier_size)` (`2^(8*block_identifier_size)`).
 -   `uint16_t rc4_crypto_passes` (2 little endian bytes, `<H`) -- The count of RC4 encryption passes to do every time RC4 encryption is initiated.
 -   `uint16_t aes_crypto_passes` (2 little endian bytes, `<H` ) -- The count of AES encryption passes to do every time AES encryption is initiated.
 -   `uint16_t chacha20_crypto_passes` (2 little endian bytes, `<H`) -- The count of ChaCha20 encryption passes to do every time ChaCha20 encryption is initiated.
@@ -224,7 +227,28 @@ Standard fields include:
     -   `u`: Username
     -   `p`: Private value of the entry (password, TOTP key)
 
-The only reserved fields are the lowercase ASCII letters + numbers (36 identifiers), so use them with caution.
+The only reserved fields are the lowercase ASCII letters (26 identifiers), so use them with caution.
+Other identifiers, allbeit not standard, you can use as custom attributes.
+
+This is only a "simple entry", it has to be separated into blocks as described below.
+
+### Chunking
+
+A simple entry cannot be added to the entry database on its own, it first has to be chunked and padded.
+
+1. First, construct a simple entry.
+2. Then split that entry into `block_size` chunks
+3. Pad the last chunk to be exactly `block_size` bytes
+4. Prepend a `block_identifier_size` byte block identifier (just not all NULLs as that is considered an empty chunk) to every single block
+5. Try to fill already empty chunks with data, or create new chunks by appending them to the data
+
+So, in conclusion, a _single_ block would look like:
+
+    [block_identifier_size byte identifier][block_size bytes from the simple entrty]
+
+#### Empty chunks
+
+Empty chunks are chunks which have the identifier for all NULL bytes.
 
 ### Validation
 
