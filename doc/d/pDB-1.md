@@ -202,6 +202,17 @@ Required to check:
 -   `crypto_check` passes the checks
 -   `header_hash` matches the whole header
 
+## Randomness
+
+Randomness used in any context in this document refers to the concept of
+cryptographically secure randomness. Pseudo-randomness is not suitable to use
+in this format as that jeopardizes the security of it.
+
+Do not implement this format using non-cryptographically-secure number generators.
+Prioritize randomness, entropy, and unpredictability wherever possible.
+
+See: <https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator>, <https://manpages.ubuntu.com/manpages/focal/man3/RAND_pseudo_bytes.3ssl.html> (`RAND_bytes(3)`)
+
 ## Hashing
 
 pDBv1 usually doesn't hash functions on their own, it actually combines your has function with the PBKDF2 key
