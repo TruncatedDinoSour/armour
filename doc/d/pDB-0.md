@@ -3,6 +3,8 @@
 > pDB is a custom, security, entropy, data structure and data integrity focused password database
 > format with high customizability and a wide range of selection
 
+**prefer pDBv1 over pDBv0**
+
 ## file extensions
 
 -   `*.pdb` -- password database ( pDB )
@@ -158,3 +160,7 @@ so if ur making a user<->db interface here are suggestions :
 
 or maybe use presets with pre-configured options, or maybe configure everything based
 off the users hardware and stuff
+
+## pDBv0: Authors
+
+-   Ari Archer \<<ari@ari.lt>\> \[<https://ari.lt/>\]

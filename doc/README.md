@@ -8,6 +8,7 @@
 - [hashing in armour](/doc/d/hashing.md)
 - [pdb header in armour](/doc/d/header.md)
 - [pDB database format -- version 0](/doc/d/pDB-0.md)
+- [pDB database format -- version 1](/doc/d/pDB-1.md)
 - [password generation in armour](/doc/d/pw-gen.md)
 - [password information extraction in armour](/doc/d/pw-info.md)
 - [randomness in armour](/doc/d/randomness.md)
