@@ -150,7 +150,8 @@ This includes how mainstream encryption algorithms are utilized in pDBv1
     -   Use PBKDF2(HMAC) with the configured hashing function, generated salt, and `pbkdf2_hmac_passes` passes to derive a 32-byte key from the database password/key
     -   Generate a 16-byte random IV for AES
     -   Append `pepper` to the data, assume `data = data + pepper` now
-    -   Encrypt the data using AES in GCM mode, using the salt file (slt) as the nonce
+    -   Derive a 12 byte nonce from `key + iv` using PBKDF2(HMAC) with salt being the before mentioned salt
+    -   Encrypt the data using AES in GCM mode with the previously mentioned nonce
     -   Pad the ciphertext using PKCS7 to block size of 128 bytes
     -   Concatenate `salt + iv + data`
     -   Process is repeated `aes_crypto_passes` passes
