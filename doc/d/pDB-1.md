@@ -12,7 +12,7 @@ and hard to tamper with.
 
 ## Why v1 over v0?
 
-pDBv1 is built so solve some issues of pDBv0, whilst sticking to the original pDB philosophy. pDBv0 has issues which pDBv1
+pDBv1 is built to solve some issues of pDBv0, whilst sticking to the original pDB philosophy. pDBv0 has issues which pDBv1
 solved. The main advantages of pDBv1 are something along the lines of:
 
 -   Greater standardization, as its standard avoids non-standard library-specific features, its specification is a lot easier to figure out
