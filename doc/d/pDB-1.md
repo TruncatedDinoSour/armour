@@ -3,6 +3,8 @@
 > pDB is a custom, security, entropy, data structure and data integrity focused password database
 > format with high customizability and a wide range of selection
 
+**this specification is still in beta**
+
 ## Uses
 
 The target audience are individuals & entities who are concerned about their or the data they're storing security.

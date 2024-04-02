@@ -6,6 +6,7 @@ import base64
 import secrets
 import typing
 
+import crc4
 import zstd
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
@@ -264,28 +265,6 @@ def decrypt_secure(
 # -- rc4 encryption --
 
 
-def crypt_rc4(data: bytes, key: bytes) -> bytes:
-    """rc4 crypto"""
-
-    S = list(range(256))
-    j: int = 0
-    out: bytearray = bytearray()
-
-    for i in range(256):
-        j = (j + S[i] + key[i % len(key)]) % 256
-        S[i], S[j] = S[j], S[i]
-
-    i = j = 0
-
-    for byte in data:
-        i = (i + 1) % 256
-        j = (j + S[i]) % 256
-        S[i], S[j] = S[j], S[i]
-        out.append(byte ^ S[(S[i] + S[j]) % 256])
-
-    return bytes(out)
-
-
 def encrypt_rc4(
     data: bytes,
     isec_crypto_passes: int,
@@ -299,9 +278,9 @@ def encrypt_rc4(
     key: bytes = hash_algo(0, rsalt + password + salt)
 
     for _ in range(isec_crypto_passes):
-        data = crypt_rc4(data=RAND.randbytes(5) + data + RAND.randbytes(5), key=key)
+        data = crc4.rc4(RAND.randbytes(5) + data + RAND.randbytes(5), key)  # type: ignore
 
-    return rsalt + data
+    return rsalt + data  # type: ignore
 
 
 def decrypt_rc4(
@@ -321,6 +300,6 @@ def decrypt_rc4(
     key: bytes = hash_algo(0, rsalt + password + salt)
 
     for _ in range(isec_crypto_passes):
-        data = crypt_rc4(data=data, key=key)[5:-5]
+        data = crc4.rc4(data, key)[5:-5]  # type: ignore
 
-    return data
+    return data  # type: ignore
