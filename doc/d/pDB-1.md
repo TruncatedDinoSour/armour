@@ -152,7 +152,7 @@ Cryptography and how pDBv1 handles it is discussed below.
 Chunk size & concept of Chunks is discussed below.
 
 -   `uint8_t chunk_identifier_size` (1 byte, `<B`) - The size of a chunk identifier in bytes.
-    -   Keep in mind the maximum entries you can have in a pDB database is `f(x)=2^{8x}-1` where `x` is `chunk_identifier_size`
+    -   Keep in mind the maximum entries you can have in a pDB database is `f(x)=256^{x}-1` where `x` is `chunk_identifier_size`
 -   `uint16_t chunk_size` (2 bytes, `<H`) - The chunk size of encrypted entries in the database.
     -   `chunk_size` must be larger then `chunk_identifier_size`
 
@@ -605,6 +605,59 @@ use some sort of algorithm to insert the chunk into the database.
 Couple of example algorithms are discussed in the subsections below.
 
 Note that the chunks need to be in order globally, they just don't need to be next to one another.
+
+### Chunk ID generation algorithm
+
+Probably the simplest way to generate a completely random (I.e not incremental) chunk ID would be brute force.
+An example algorithm could be implemented like this:
+
+    uint64_t max_chunks = pow(256, chunk_identifier_size);
+    bytes null_identifier = b"\0" * chunk_identifier_size;
+
+    bytes generate_chunk_id(void) {
+        uint64_t total_chunks = pdb.chunks.size();
+
+        if (total_chunks == max_chunks)
+            throw "All possible chunk IDs have been generated.";
+
+        if (max_chunks - total_chunks == 1 && null_identifier not in pdb.chunks)
+            throw "Only available chunk ID is the NULL chunk ID.";
+
+        while (true) {
+            bytes chunk_id = random(chunk_identifier_size);
+
+            if (chunk_id != null_identifier && chunk_id not in pdb.chunks.ids)
+                return chunk_id;
+        }
+    }
+
+In other words,
+
+-   Check if the chunk ID resource was not exhausted fully
+-   Check if the only available chunk ID is not the NULL identifier
+-   Start an infinite loop
+-   Generate a `chunk_identifier_size` random bytes
+-   Check if the generated identifier is not all NULLs
+-   Check if the identifier is unique
+-   If all checks passed, return the generated chunk id (and so - break the loop)
+-   If not, try again
+
+There are optimizations and transformations you can apply to the algorithm, such as:
+
+-   Generating the chunk Identifier byte-by-byte to reduce probability
+-   Keeping track of generated chunks
+-   Checking the `sum(chunk_id) != 0` instead of comparing bytes
+-   Use hashing functions (or a data structure such as a Hash table)
+-   Caching the IDs so you wouldn't need to regenerate them each time
+-   Binary search if the IDs are sorted
+-   Batch generation of the IDs
+-   Probably more...
+
+But The idea stays the same - brute force.
+
+Or you can go the less entropic way of doing things and just using `total_chunks + 1` represented
+through bytes as the ID of the chunk, although this is **not recommended** due to integer limits and
+just for the fact that it doesn't have enough entropy.
 
 ### Insertion Algorithm #1: O(n^2)
 
