@@ -729,7 +729,7 @@ empty chunks:
 
 This is still O(n) but the n is a lot smaller.
 
-### Fragmentation algorithm (theoretical)
+### Fragmentation algorithm
 
 If you ever need (or want) to fragment the database, you can do it in many ways, for example:
 
@@ -737,12 +737,31 @@ If you ever need (or want) to fragment the database, you can do it in many ways,
         if (random(1, 3) % 2 == 0)
             chunk.insert_after(Chunk());
 
-All of this is very theoretical and will vary a lot depending on the implementation.
+This will depend a lot on the implementation. The algorithm presented here is in O(n) time.
 
-### Chunk removal
+### Chunk removal algorithm
 
 To remove a chunk you just replace its chunk identifier with all NULLs and possibly overwrite
 the data the chunk is storing with either all NULLs or completely random data (which is preferred).
+
+This can easily be done in O(n) time:
+
+    for (Chunk chunk in pdb.chunks)
+        if (chunk.id == some_chunk.id)
+            chunk.erase();
+
+Theoretically, this can be achieved in constant O(1) time if chunks are stored in order
+and they're stored in a Hash table or some other O(1) structure, but that's rarely the case.
+We could only optimize this better by indexing all chunk IDs in a Hash table and removing
+the chunks with a smaller `n`, although still in O(n) time:
+
+    for (Chunk chunk in pdb.chunks[some_chunk])
+        chunk.erase();
+
+Of course, just as all algorithms presented in this document, it is all theoretical, and your
+implementation may (and most likely will) differ. These algorithms are just here to give you
+a simple base algorithm you can optimize later in the future so you understand the logic behind it
+all.
 
 ## Security, clients, feedback & questions
 
