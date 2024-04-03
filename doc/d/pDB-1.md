@@ -231,7 +231,7 @@ derivation function to generate a so to say "authenticated" hash. In pseudocode:
             length=algorithm.digest_size + salt_size,
             salt=salt + slt_file,
             iterations=pbkdf2_hmac_passes,
-        ).derive(databse_password);
+        ).derive(database_password);
 
         HMAC hmac = HMAC(
             key=key,
@@ -266,8 +266,8 @@ In pseudocode, this is how pDBv1 handles RC4 encryption:
             bytes p = random(8);
             bytes a = random(8);
 
-            # This will use the hash function *directly*
-            bytes key = hash_by_hash_function_id(0, a + pepper + database_password + slt_file + p);
+            # Uses the hashing function directly, in this case - hash_id=0
+            bytes key = get_hash_algorithm_by_hash_id(0)(p + pepper + slt_file + a + database_password);
 
             data = rc4_crypto(data, key);
 
@@ -281,8 +281,7 @@ In other words,
 
 -   Generate 8 random bytes, call it `p`
 -   Generate another 8 random bytes, call it `a`
--   Hash `a + pepper + database_password + slt_file + p` by directly using the most secure hashing
-    function available (hash_id=0), this is our RC4 key
+-   Use the most secure hashing algorithm available (hash_id=0) to derive a key from `p + pepper + slt_file + a + database_password`
 -   Encrypt the data, assume we reassign `data = encrypt_using_rc4(data)` now
 -   Prepend `p` and `a` to the data, assume we reassign it: `data = p + a + data`
 -   Repeat this process `rc4_crypto_passes` times
@@ -305,7 +304,7 @@ it in pseudocode:
                 length=32,
                 salt=salt + slt_file,
                 iterations=pbkdf2_hmac_passes,
-            ).derive(databse_password);
+            ).derive(database_password);
 
             data = chacha20_crypto(data, key);
 
@@ -343,7 +342,7 @@ how pDBv1 utilizes it:
                 length=32,
                 salt=salt + slt_file,
                 iterations=pbkdf2_hmac_passes,
-            ).derive(databse_password);
+            ).derive(database_password);
 
             bytes iv = random(12);
 
