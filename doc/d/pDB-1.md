@@ -659,7 +659,7 @@ Or you can go the less entropic way of doing things and just using `total_chunks
 through bytes as the ID of the chunk, although this is **not recommended** due to integer limits and
 just for the fact that it doesn't have enough entropy.
 
-### Insertion algorithm #1: O(n^2)
+### Insertion algorithm #1: O(nm)
 
 -   Loop through all chunks in the database and check if there's any available
     empty chunks (chunks where the chunk identifier is all NULLs)
@@ -684,6 +684,8 @@ In other words:
         if (!found)
             pdb.chunks.append(new_chunk);
     }
+
+Time complexity of this algorithm is O(nm) where n is the new chunks and m is the total chunks.
 
 ### Insertion algorithm #2: O(n)
 
@@ -752,7 +754,8 @@ This can easily be done in O(n) time:
 
 Theoretically, this can be achieved in constant O(1) time if chunks are stored in order
 and they're stored in a Hash table or some other O(1) structure, but that's rarely the case.
-We could only optimize this better by indexing all chunk IDs in a Hash table and removing
+
+We could optimize this better by indexing all chunk IDs in a Hash table and removing
 the chunks with a smaller `n`, although still in O(n) time:
 
     for (Chunk chunk in pdb.chunks[some_chunk])
