@@ -180,6 +180,12 @@ in this section as it is stored in **plain text**.
 Locking and concurrency is discussed below.
 
 -   `uint8_t lock_state` (1 byte, `<B`) - The current database lock state.
+    -   `0x00`: Unlocked
+    -   `0x01`: Locking
+    -   `0x02`: Locked
+    -   `0x04`: Releasing
+    -   `0x05`: Disabled (Forever locked, lock handled by a client service)
+    -   Anything else: Invalid
 
 ### Virtual section: Dynamic data (chunked entries)
 
@@ -498,21 +504,14 @@ This section is used for validating encryption and compression.
 ## Locking and concurrency
 
 pDBv1 supports locking so multiple processes, threads, clients, etc. could work on the same database
-at the same time without causing conflicts in data. The lock is stored in the database file itself, and
-the locking states supported by pDBv1 are:
+at the same time without causing conflicts in data. The lock is stored in the database file itself.
 
--   `0x00`: Unlocked
--   `0x01`: Locking
--   `0x02`: Locked
--   `0x04`: Releasing
--   `0x05`: Disabled (Forever locked, lock handled by a client service)
--   Anything else: Invalid
-
-This locking state can more effectively be achieved through the network and storing it in system memory rather than
+This locking state can more effectively stored through the network and storing it in system memory rather than
 in the file, in which case the Standard Network API (SNAPI) should be implemented and the locking state should be set
-to `0x05` (Disabled). If you're handling the `0x05` state, you may set the `Connect` metadata key to a connection address.
+to `0x05` (Disabled) in the file. If you're handling the `0x05` state, you may set the `Connect` metadata key
+to the connection address of your service.
 
-Read more about the SNAPI in the dedicated documentation section on it.
+Read more about the SNAPI in the dedicated documentation section about it.
 
 ## Entries
 
