@@ -659,7 +659,7 @@ Or you can go the less entropic way of doing things and just using `total_chunks
 through bytes as the ID of the chunk, although this is **not recommended** due to integer limits and
 just for the fact that it doesn't have enough entropy.
 
-### Insertion Algorithm #1: O(n^2)
+### Insertion algorithm #1: O(n^2)
 
 -   Loop through all chunks in the database and check if there's any available
     empty chunks (chunks where the chunk identifier is all NULLs)
@@ -685,7 +685,7 @@ In other words:
             pdb.chunks.append(new_chunk);
     }
 
-### Insertion Algorithm #2: O(n)
+### Insertion algorithm #2: O(n)
 
 -   Have an ordered index (array) of empty chunks in an array
     -   For purposes of this algorithm, let's say index [0] is the
@@ -736,16 +736,6 @@ If you ever need (or want) to fragment the database, you can do it in many ways,
     for (Chunk chunk in pdb.chunks)
         if (random(1, 3) % 2 == 0)
             chunk.insert_after(Chunk());
-
-You can also shuffle the heap in the process, by going through the non-empty chunks
-and randomly inserting them in the newly made empty spaces:
-
-    for (Chunk chunk in pdb.chunks)
-        if (random(1, 3) % 2 == 0)
-            chunk.insert_after(Chunk());
-
-        if (random(1, 5) % 2 == 0)
-            chunk.move_to(pdb.emtpy_chunks[0])
 
 All of this is very theoretical and will vary a lot depending on the implementation.
 
