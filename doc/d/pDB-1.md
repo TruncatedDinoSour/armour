@@ -246,7 +246,7 @@ derivation function to generate a so to say "authenticated" hash. In pseudocode:
 In other words:
 
 -   Generate a `salt_size` salt
--   Using PBKDF2(HMAC, algorihm, generated_salt + slt_file, pbkdf2_hmac_passes) derive a `secure_hash_size` key from the database
+-   Using PBKDF2(HMAC, algorithm, generated_salt + slt_file, pbkdf2_hmac_passes) derive a `secure_hash_size` key from the database
     password
 -   Pass the derived key, along with the hashing algorithm to HMAC
 -   Pass the `data + pepper_bytes` to the HMAC function
@@ -337,7 +337,7 @@ In other words,
 
 ### AES
 
-AES in GCM mode is used as a final layer of encryption, it is a slow, but secure encryption algorihm. This is
+AES in GCM mode is used as a final layer of encryption, it is a slow, but secure encryption algorithm. This is
 how pDBv1 utilizes it:
 
     bytes aes(bytes data) {
@@ -544,6 +544,7 @@ This is how you would construct a complex entry:
 4. Prepend a unique `chunk_identifier_size` byte chunk identifier to every single chunk
     - Mind you that a chunk identifier cannot be all NULL bytes (for example a 4 byte chunk identifier cannot be just `0x00 0x00 0x00 0x00`).
       A chunk identifier of all NULL bytes signifies an **empty chunk**.
+    - Ideally a chunk identifier is cryptographically secure random data instead of an incremental counter
 
 You have now successfully constructed a complex entry - an array of chunks. Next you will need to
 use some sort of algorithm to insert the chunk into the database.
@@ -551,7 +552,7 @@ Couple of example algorithms are discussed in the subsections below.
 
 Note that the chunks need to be in order globally, they just don't need to be next to one another.
 
-### Algorithm #1: O(n^2)
+### Insertion Algorithm #1: O(n^2)
 
 -   Loop through all chunks in the database and check if there's any available
     empty chunks (chunks where the chunk identifier is all NULLs)
@@ -577,7 +578,7 @@ In other words:
             pdb.chunks.append(new_chunk);
     }
 
-### Algorithm #2: O(n)
+### Insertion Algorithm #2: O(n)
 
 -   Have an ordered index (array) of empty chunks in an array
     -   For purposes of this algorithm, let's say index [0] is the
@@ -603,6 +604,43 @@ These algorithms are not the only available ones, just a couple of very simple
 chunk management algorithms which handle fragmentation well.
 
 You have now successfully inserted a chunk into the database.
+
+### Defragmentation algorithm
+
+If you ever need to defragment the chunks, you can easily use
+this algorithm:
+
+    for (Chunk chunk in pdb.chunks)
+        if (chunk.empty)
+            chunk.remove()
+
+This is O(n) where n is all chunks. You an improve the performance of it by keeping an index of all
+empty chunks:
+
+    for (Chunk chunk in pdb.emtpy_chunks)
+        chunk.remove()
+
+This is still O(n) but the n is a lot smaller.
+
+### Fragmentation algorithm (theoretical)
+
+If you ever need (or want) to fragment the database, you can do it in many ways, for example:
+
+    for (Chunk chunk in pdb.chunks)
+        if (random(1, 3) % 2 == 0)
+            chunk.insert_after(Chunk());
+
+You can also shuffle the heap in the process, by going through the non-empty chunks
+and randomly inserting them in the newly made empty spaces:
+
+    for (Chunk chunk in pdb.chunks)
+        if (random(1, 3) % 2 == 0)
+            chunk.insert_after(Chunk());
+
+        if (random(1, 5) % 2 == 0)
+            chunk.move_to(pdb.emtpy_chunks[0])
+
+All of this is very theoretical and will vary a lot on the implementation.
 
 ### Chunk removal
 
