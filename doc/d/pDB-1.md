@@ -640,7 +640,7 @@ and randomly inserting them in the newly made empty spaces:
         if (random(1, 5) % 2 == 0)
             chunk.move_to(pdb.emtpy_chunks[0])
 
-All of this is very theoretical and will vary a lot on the implementation.
+All of this is very theoretical and will vary a lot depending on the implementation.
 
 ### Chunk removal
 
