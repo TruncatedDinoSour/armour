@@ -286,6 +286,16 @@ In other words,
 -   Prepend `p` and `a` to the data, assume we reassign it: `data = p + a + data`
 -   Repeat this process `rc4_crypto_passes` times
 
+To justify the usage of RC4 in this format:
+
+-   The main use of RC4 in this format is to introduce more entropy and introduce a small layer of encryption & obfuscation
+-   If RC4 is cracked, you won't extract much from it, the key is a 512-bit hash out of which you cannot extract the important parts
+    (slt_file & database_password)
+-   Where a single pass of RC4 is used, the encrypted data is not sensitive
+-   Where RC4 is genuinely used, it is behind multiple layers of very secure encryption and transformation (ChaCha20, ZSTD, AES)
+
+I think it is justifiable in this case.
+
 ### ChaCha20
 
 ChaCha20 is a secure encryption algorithm used a lot in pDBv1. This is how pDBv1 customizes
