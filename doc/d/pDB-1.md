@@ -31,6 +31,7 @@ a lot better than pDBv0, such as:
     -   Made the format more flexible and dynamic
     -   Simplify parts of the structure, allowing the format to be more flexible and dynamic
     -   Added support for dynamic entries by chunking
+    -   Added support for locking and concurrency
 -   Chunking Mechanism
     -   Introduce chunking to organize and store entities to improve the performance, scalability,
         and structure of the database
@@ -174,6 +175,12 @@ in this section as it is stored in **plain text**.
 -   `uint8_t crypto_check[crypto_check_size]` - 196 random bytes encrypted using all possible encryption methods and compression. (see crypto check workflow below)
 -   `uint8_t header_hash[secure_hash_size]` (`secure_hash_size` bytes, `<L`) - The hash of the whole header before it.
 
+### Virtual section: Concurrency
+
+Locking and concurrency is discussed below.
+
+-   `uint8_t lock_state` (1 byte, `<B`) - The current database lock state.
+
 ### Virtual section: Dynamic data (chunked entries)
 
 Entry structure is discussed below.
@@ -186,6 +193,8 @@ This subsection describes the validation criteria for a pDB database to be consi
 
 The following conditions must be satisfied:
 
+-   The lock of the database is valid
+-   The lock of the database is unlocked
 -   The magic bytes are `0x70 0x44 0x42 0xf6`
 -   The version of the database is supported by the pDB client
 -   The ZSTD compression level is below 23 (22 is max)
@@ -428,6 +437,7 @@ ignore the `(note)` and just use the `Key:Value`.
 
     Client:Pwdmgr client From Pwdtools By Ari Archer <ari@ari.lt> Version 1.0.0 License GPL-3.0-or-later (See Client ID structure below)
     Creation:2024-04-02 22:16:54 (The creation date of the database, YYYY-MM-DD hh:mm:ss)
+    Connect:<connection address> (The connection address of the pDB database, usually handled by the 0x05 locking state. See connection address format below)
     Email:me@example.com (The email(s) of the owner(s) of this database)
     GPG:4FAD63E936B305906A6C4894A50D5B4B599AF8A2+ari@ari.lt (GPG key ID for author's emails)
     Matrix:@me:example.com (The matrix id(s) of the owner(s) of this database)
@@ -444,6 +454,38 @@ The Client ID (`Client` metadata key) has the following structure:
 
 There's no other structure for it.
 
+#### Connection address
+
+Here are the supported connection address formats for pDB:
+
+-   `pdb://host.name:port/database?v=?` - No authentication connection to a database
+    -   Required authentication layers: None
+-   `mpdb://user@host.name:port/database?v=?` - Multi-user server pDB connection to a database
+    -   If value of `Connect` is only `mpdb://host.name:port/database?v=?` it means 'Connect with your own user and password'
+    -   Required authentication layers: User password, user secret
+-   `tmpdb://user@host.name:port/database?v=?` - Multi-user server pDB connection to a database, with TOTP
+    -   If value of `Connect` is only `tmpdb://host.name:port/database?v=?` it means 'Connect with your own user, password, and TOTP'
+    -   Required authentication layers: User password, user secret, TOTP
+-   `spdb://host.name:port/database?v=?` - Secure authentication connection to a database
+    -   This connection _will_ require you to pass the database credentials over the pDB connection to use it,
+        usually for servers that may not specifically handle the database on their own, but rather giving a
+        server to store databases on.
+    -   Required authentication layers: Database password, database salt (slt)
+-   `smpdb://user@host.name:port/database?v=?` - Secure multi-user authentication connection to a database
+    -   If value of `Connect` is only `smpdb://host.name:port/database?v=?` it means 'Connect with your own user and password'
+    -   Same as `spdb`, except with added user-based authentication as in `mpdb`
+    -   Required authentication layers: User password, user secret, database password, database salt (slt)
+-   `tsmpdb://user@host.name:port/database?v=?` - Secure multi-user authentication connection to a database, with TOTP
+    -   If value of `Connect` is only `tsmpdb://host.name:port/database?v=?` it means 'Connect with your own user, password, and TOTP'
+    -   Same as `spdb`, except with added user-based authentication as in `mpdb`
+    -   Required authentication layers: User password, user secret, database password, database salt (slt), TOTP
+
+The `v` parameter is optional, but it is sent over to the server and also gives context for clients.
+The value of `v` should be the database version represented as a string (so version 1 would be `1`, version 0 - `0`,
+version 731 - `731` and so on).
+
+Read more about connections in SNAPI documentation.
+
 ## Crypto check
 
 The crypto check section is just 196 random bytes that get "compressed" (will usually end up in larger output) using ZSTD,
@@ -452,6 +494,25 @@ then passed to RC4, ChaCha20, and then AES. In pseudocode it'd look like this:
     AES(ChaCha20(RC4(ztsd(random(196)))))
 
 This section is used for validating encryption and compression.
+
+## Locking and concurrency
+
+pDBv1 supports locking so multiple processes, threads, clients, etc. could work on the same database
+at the same time without causing conflicts in data. The lock is stored in the database file itself, and
+the locking states supported by pDBv1 are:
+
+-   `0x00`: Unlocked
+-   `0x01`: Locking
+-   `0x02`: Locked
+-   `0x04`: Releasing
+-   `0x05`: Disabled (Forever locked, lock handled by a client service)
+-   Anything else: Invalid
+
+This locking state can more effectively be achieved through the network and storing it in system memory rather than
+in the file, in which case the Standard Network API (SNAPI) should be implemented and the locking state should be set
+to `0x05` (Disabled). If you're handling the `0x05` state, you may set the `Connect` metadata key to a connection address.
+
+Read more about the SNAPI in the dedicated documentation section on it.
 
 ## Entries
 
@@ -647,7 +708,7 @@ All of this is very theoretical and will vary a lot depending on the implementat
 To remove a chunk you just replace its chunk identifier with all NULLs and possibly overwrite
 the data the chunk is storing with either all NULLs or completely random data (which is preferred).
 
-## Security, clients & questions
+## Security, clients, feedback & questions
 
 Email <ari@ari.lt> for any questions or security concerns you have about the pDBv1 format. I will be sure
 to either update the format, answer your questions, or start a new version of pDB fixing the problems
@@ -658,7 +719,7 @@ Please do note that creating a client is an extremely complex task, and your cli
 as Beta until it has been tested by time and it is clear that the development of the client is going
 well.
 
-Your contribution matters!
+Any feedback is welcome, and remember - your contribution matters!
 
 ## Authors
 

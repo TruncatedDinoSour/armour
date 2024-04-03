@@ -1,4 +1,5 @@
 # armour documentation index
+- [Standard Network Application Programming Interface (SNAPI) -- version 1 (alpha)](/doc/d/SNAPI-1.md)
 - [armour the python package](/doc/d/armour.md)
 - [cryptography in armour](/doc/d/crypto.md)
 - [custom pdb entries in armour](/doc/d/custom-entries.md)
