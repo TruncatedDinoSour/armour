@@ -760,8 +760,7 @@ the chunks with a smaller `n`, although still in O(n) time:
 
 Of course, just as all algorithms presented in this document, it is all theoretical, and your
 implementation may (and most likely will) differ. These algorithms are just here to give you
-a simple base algorithm you can optimize later in the future so you understand the logic behind it
-all.
+a simple base algorithm you can optimize later in the future so you understand the logic behind it.
 
 ## Security, clients, feedback & questions
 
