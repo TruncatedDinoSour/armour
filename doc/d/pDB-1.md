@@ -230,7 +230,7 @@ Implementations of the cryptographically secure functions may differ but the res
 must stay the same - almost unpredictable, cryptographically secure random
 numbers.
 
-See: <https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator>, <https://manpages.ubuntu.com/manpages/focal/man3/RAND_pseudo_bytes.3ssl.html> (`RAND_bytes(3)`)
+See: <https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator>, <https://manpages.ubuntu.com/manpages/noble/en/man3/RAND_bytes.3ssl.html> (`RAND_bytes(3)`)
 
 ## Hashing
 
