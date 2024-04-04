@@ -444,7 +444,7 @@ ignore the `(note)` and just use the `Key:Value`.
     Creation:2024-04-02 22:16:54 (The creation date of the database, YYYY-MM-DD hh:mm:ss)
     Connect:<connection address> (The connection address of the pDB database, usually handled by the 0x05 locking state. See connection address format below)
     Email:me@example.com (The email(s) of the owner(s) of this database)
-    GPG:4FAD63E936B305906A6C4894A50D5B4B599AF8A2+ari@ari.lt (GPG key ID for author's emails)
+    GPG:4FAD63E936B305906A6C4894A50D5B4B599AF8A2 ari@ari.lt (GPG key ID for author's emails)
     Matrix:@me:example.com (The matrix id(s) of the owner(s) of this database)
     Name:Jane Dane (The full name of the owner(s) of this database)
     Note:Any data here (A note of the database)
