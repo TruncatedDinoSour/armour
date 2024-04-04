@@ -463,25 +463,21 @@ There's no other structure for it.
 
 Here are the supported connection address formats for pDB:
 
--   `pdb://host.name:port/database?v=?` - No authentication connection to a database
+-   `pdb://host.name:port/database` - No authentication connection to a database
     -   Required authentication layers: None
     -   Note: Only use this when you know you can trust anyone to access the database. Usually in local scenarios.
--   `mpdb://user@host.name:port/database?v=?` - Multi-user server pDB connection to a database
-    -   If value of `Connect` is only `mpdb://host.name:port/database?v=?` it means 'Connect with your own user and secret(s) (password)'
+-   `mpdb://user@host.name:port/database` - Multi-user server pDB connection to a database
+    -   If value of `Connect` is only `mpdb://host.name:port/database` it means 'Connect with your own user and secret(s) (password)'
     -   Required authentication layers: User secret(s) (password)
--   `spdb://host.name:port/database?v=?` - Secure authentication connection to a database
+-   `spdb://host.name:port/database` - Secure authentication connection to a database
     -   This connection _will_ require you to pass the database credentials over the pDB connection to use it,
         usually for servers that may not specifically handle the database on their own, but rather giving a
         server to store databases on and use the database on the server.
     -   Required authentication layers: Database password, database salt (slt)
--   `smpdb://user@host.name:port/database?v=?` - Secure multi-user authentication connection to a database
-    -   If value of `Connect` is only `smpdb://host.name:port/database?v=?` it means 'Connect with your own user and secret(s) (password)'
+-   `smpdb://user@host.name:port/database` - Secure multi-user authentication connection to a database
+    -   If value of `Connect` is only `smpdb://host.name:port/database` it means 'Connect with your own user and secret(s) (password)'
     -   Same as `spdb`, except with added user-based authentication as in `mpdb`
     -   Required authentication layers: User secret(s) (password), database password, database salt (slt)
-
-The `v` parameter is optional, but it is sent over to the server and also gives context for clients.
-The value of `v` should be the database version represented as a string (so version 1 would be `1`, version 0 - `0`,
-version 731 - `731` and so on).
 
 Read more about connections in SNAPI documentation.
 
