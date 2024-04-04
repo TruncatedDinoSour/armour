@@ -414,8 +414,7 @@ Metadata is a simple `Key:Value` store which can have duplicating keys, such as:
     huihtuierhtiuhjiuehui
     ^ this is an invalid key-value pair
 
-Keys cannot include semicolons or newlines, and values cannot include newlines. If you need to use
-illegal characters use [Percent encoding](https://en.wikipedia.org/wiki/Percent-encoding)
+Keys cannot include semicolons or newlines, and values cannot include newlines.
 
 Everything after the first `:` is considered a value, and a newline starts a new `Key:Value` pair.
 Values may be empty (in case of `Key:` (a newline right after the semicolon or the end of the metadata section)).
