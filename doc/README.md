@@ -1,5 +1,6 @@
 # armour documentation index
 - [Standard Network Application Programming Interface (SNAPI) -- version 1 (alpha)](/doc/d/SNAPI-1.md)
+- [pDB database format -- version 1 (alpha)](/doc/d/_DRAFT_pDB-1.md)
 - [armour the python package](/doc/d/armour.md)
 - [cryptography in armour](/doc/d/crypto.md)
 - [custom pdb entries in armour](/doc/d/custom-entries.md)
@@ -9,7 +10,6 @@
 - [hashing in armour](/doc/d/hashing.md)
 - [pdb header in armour](/doc/d/header.md)
 - [pDB database format -- version 0](/doc/d/pDB-0.md)
-- [pDB database format -- version 1 (alpha)](/doc/d/pDB-1.md)
 - [password generation in armour](/doc/d/pw-gen.md)
 - [password information extraction in armour](/doc/d/pw-info.md)
 - [randomness in armour](/doc/d/randomness.md)
