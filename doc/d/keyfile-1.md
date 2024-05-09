@@ -13,6 +13,8 @@ This file has a single pass of encryption, which is good enough for obscuring th
 not recommended to share or spread your Keyfile publicly. It must be kept secret, and if publicly released, the
 system shall be classified as highly compromised.
 
+This Keyfile format is not lightweight, same as pDBv1. It is focused on security, rather than being small and lightweight.
+
 ## File identifiers
 
 -   File extension: `.pkf`
@@ -50,39 +52,43 @@ Keyfile version 1 uses AES256 in GCM mode with the Argon2 key derivation functio
 
     bytes database_pw_digest = Argon2(password=database_pw, ..., hash_len=256, salt=isalt);
 
-    bytes s1 = random(32);
-    bytes s2 = random(32);
+    # n starts at 0 and ends with n = aes_crypto_passes
 
-    # 32 bytes key
+    for n in times(aes_crypto_passes + 3) {
+        bytes s1 = random(32);
+        bytes s2 = random(32);
 
-    bytes key = Argon2(
-        password=(database_pw + ksalt),
-        time_cost=time_cost,
-        ...,
-        hash_len=32,
-        salt=(database_pw_digest + s1),
-    )
+        # 32 bytes key
 
-    # 12 bytes IV
+        bytes key = Argon2(
+            password=(database_pw + ksalt + stringify(n)),
+            time_cost=time_cost,
+            ...,
+            hash_len=32,
+            salt=(database_pw_digest + s1),
+        )
 
-    bytes iv = Argon2(
-        password=(ksalt + database_pw),
-        time_cost=time_cost,
-        ...,
-        hash_len=12,
-        salt=(s2 + database_pw_digest),
-    )
+        # 12 bytes IV
 
-    AESGCM aes = AESGCM(
-        key=key,
-        iv=iv,
-    )
+        bytes iv = Argon2(
+            password=(ksalt + stringify(n) + database_pw),
+            time_cost=time_cost,
+            ...,
+            hash_len=12,
+            salt=(s2 + database_pw_digest),
+        )
 
-    keys = aes.encrypt(keys);
+        AESGCM aes = AESGCM(
+            key=key,
+            iv=iv,
+        )
 
-    # `aes.tag` is 16 bytes
+        keys = aes.encrypt(keys);
 
-    keys = s1 + s2 + aes.tag + keys;
+        # `aes.tag` is 16 bytes
+
+        keys = s1 + s2 + aes.tag + keys;
+    }
 
 Bare in mind the randomness must be **cryptographically secure**, including the generation of random bytes (`random` function in pseudocode).
 All Argon2 parameters (including `time_cost` come from the database configuration).
@@ -90,8 +96,9 @@ All Argon2 parameters (including `time_cost` come from the database configuratio
 In other words the single-pass encryption algorithm would be:
 
 -   Generate a 256-byte database password digest using the `isalt` as the salt
+-   Process is repeated `aes_crypto_passes + 3` times (configured by the database)
 -   Generate two 32-byte salts: `s1` and `s2`
--   Use Argon2 to derive a 32-byte key for AES256 in GCM mode, passing in database password and `ksalt` concatenated and passing in `database_pw_digest + s1` as the salt
+-   Use Argon2 to derive a 32-byte key for AES256 in GCM mode, passing in database password, current iteration of the encryption and `ksalt` concatenated and passing in `database_pw_digest + s1` as the salt
 -   In a similar fashion, Initialization Vector (IV) is derived
 -   AES in GCM mode encrypts the `keys`
 -   `s1`, `s2`, AES GCM tag, and the ciphertext are concatenated, and the single pass of AES is done
@@ -130,7 +137,9 @@ The algorithm is simple:
 -   Identify the file by the magic number
 -   Verify the hash of the Keyfile
 -   Decryption steps should succeed, including the GCM authentication checks
--   If any of the checks fail, you shall terminate the access to the database to prevent any damage or tampered with data
+-   The version of the Keyfile can be used by the database version (usually meaning the versions have to be the same)
+
+If any of the checks fail, you shall terminate the access to the database to prevent any damage or tampered with data
 
 ## Authors
 
