@@ -9,6 +9,7 @@
 - [armour exceptions](/doc/d/exceptions.md)
 - [hashing in armour](/doc/d/hashing.md)
 - [pdb header in armour](/doc/d/header.md)
+- [Keyfile - version 1](/doc/d/keyfile-1.md)
 - [pDB database format -- version 0](/doc/d/pDB-0.md)
 - [password generation in armour](/doc/d/pw-gen.md)
 - [password information extraction in armour](/doc/d/pw-info.md)
