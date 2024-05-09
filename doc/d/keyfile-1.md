@@ -1,8 +1,8 @@
-# Keyfile - version 1
+# Keyfile - version 1 (alpha)
 
-**This is an alpha format. Do not implement it yet.**
+**This is an alpha stage format, same as pDBv1 and SNAPI. Do not implement it or use it in production yet until the next stable release.**
 
-This document defines the format of a pDB Keyfile file, which is used to store various keys.
+This document defines the format of a pDB Keyfile file, which is used to store various keys and/or their parameters.
 
 The purpose of this format is to define a format where keys may be stored in a non-raw format, adding a layer
 of authentication, authenticity, and authorization to the access of them. This system highly depends on the strength
@@ -42,7 +42,7 @@ Keys format is as follows:
 | `uint16_t`             | `rsa_sk_size`    | The size of `rsa_sk`. (little endian)                                                                |
 | `uint8_t[rsa_sk_size]` | `rsa_sk`         | The RSA-4096 secret key as encrypted PEM.                                                            |
 
-All of these are concatenated in order (from top of the table to bottom) and encrypted using AES256-GCM like this:
+All of these are concatenated in order (from top of the table to bottom) and encrypted using AES256 in GCM mode like this:
 
 ## Cryptography
 
@@ -130,6 +130,7 @@ The algorithm is simple:
 -   Identify the file by the magic number
 -   Verify the hash of the Keyfile
 -   Decryption steps should succeed, including the GCM authentication checks
+-   If any of the checks fail, you shall terminate the access to the database to prevent any damage or tampered with data
 
 ## Authors
 
