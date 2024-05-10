@@ -7,7 +7,7 @@ This document defines the format of a pDB Keyfile file, which is used to store v
 The purpose of this format is to define a format where keys may be stored in a non-raw format, adding a layer
 of authentication, authenticity, and authorization to the access of them. This system highly depends on the strength
 of your password, meaning you shall set a strong password - clients may force users to set a strong password to not
-compromise the security of the whole system.
+compromise the security of the Keyfile system.
 
 This file has multiple passes of encryption, which is good enough for obscuring the keys stored inside, although it is
 not recommended to share or spread your Keyfile publicly. It must be kept secret, and if publicly released, the
@@ -23,12 +23,12 @@ system shall be classified as highly compromised.
 
 | C type         | Name           | Description                                                                                                   |
 | -------------- | -------------- | ------------------------------------------------------------------------------------------------------------- |
-| `uint8_t[4]`   | `magic`        | The magic number of the file, including the version. Always a constant value.                                 |
+| `uint8_t[4]`   | `magic`        | The magic number of the file. Always a constant value.                                                        |
 | `uint16_t`     | `version`      | The version of the Keyfile. A constant value per-version. (in the case of pKf1 case - `0x01`) (little endian) |
-| `uint8_t`      | `locked`       | Is the keyfile currently locked? See lock statuses below.                                                     |
+| `uint8_t`      | `locked`       | Is the Keyfile currently locked? See lock statuses below.                                                     |
 | `uint8_t[64]`  | `sha3_512_sum` | The SHA3-512 hash of the whole database after the hash.                                                       |
 | `uint8_t[512]` | `salt`         | Keyfile salt.                                                                                                 |
-| `uint8_t[]`    | `keys`         | The keys and/or their parameters stored in the Keyfile. Encrypted section.                                    |
+| `uint8_t[]`    | `keys`         | The keys and/or their parameters stored in the Keyfile. Dynamic section of encrypted chunks.                  |
 
 A generic layout of everything would look like this:
 
@@ -43,11 +43,12 @@ A generic layout of everything would look like this:
 -   `0x01` - Locking.
 -   `0x02` - Locked.
 -   `0x03` - Consult the database.
+    -   Normal lock resolution process is executed on the database (including SNAPI resolution).
 -   Anything else - Unknown (format error).
 
 ## Keys format
 
-The keys are a dynamic section. Every block is dynamic and the keys don't have an infinite lifetime, a key may last up to 255 days. The format is as follows:
+The keys are a dynamic section of encrypted chunks. Every block is dynamic and the keys don't have an infinite lifetime, a key may last up to 255 days. The format is as follows:
 
 | C type          | Name   | Description                                            |
 | --------------- | ------ | ------------------------------------------------------ |
@@ -55,14 +56,14 @@ The keys are a dynamic section. Every block is dynamic and the keys don't have a
 | `uint64_t`      | `size` | The size of the binary blob following. (little endian) |
 | `uint8_t[size]` | `data` | The encrypted data of the key.                         |
 
-The keys are in order, IDs should be assigned from ID 0 being the key at the beginning of file.
+The keys are in order, IDs should be assigned from ID 0, 0 being the key at the beginning of file.
 
-The encryption of data is discussed below. After the blob was encrypted it may be appended to the keyfile and decrypted.
+The encryption of data is discussed below. After the blob was encrypted it may be appended to the Keyfile.
 
 ### Key types
 
-This section describes the formats for differing key formats defined by the key section. All keys are encrypted and rotating.
-Keys always have one field at the start of them:
+This section describes the formats for differing key formats defined by the key section. All keys are encrypted and timestamped.
+Keys always have these fields before the actual data:
 
 | C type         | Name                  | Description                                                            |
 | -------------- | --------------------- | ---------------------------------------------------------------------- |
@@ -70,13 +71,13 @@ Keys always have one field at the start of them:
 | `uint8_t`      | `lifetime`            | Lifetime of the key in days, if zero - instant expiry.                 |
 | `uint8_t[128]` | `salt`                | 1024-bit key salt.                                                     |
 
-Formula to check the expiration status: `(current_timestamp - provision_timestamp) > (lifetime * 24 * 60 * 60) `
+(Formula to check the expiration status: `(current_timestamp - provision_timestamp) > (lifetime * 24 * 60 * 60) `, where `current_timestamp` is the current (as time of accessing `provision_timestamp`) UTC UNIX time timestamp)
 
 Followed by one of the following formats, based off the `type`:
 
-#### 0x00 - RSA-4096 keypair
+#### 0x00 - RSA-4096 key pair
 
-This is the format of an RSA-4096 public and secret keypair:
+This is the format of an RSA-4096 public and secret key pair:
 
 | C type             | Name      | Description                                                                                       |
 | ------------------ | --------- | ------------------------------------------------------------------------------------------------- |
@@ -162,7 +163,7 @@ If any of the checks fail, you shall terminate the access to the database to pre
 
 ## Authors
 
--   Ari Archer \<<ari@ari.lt>\> - Author and maintainer of Keyfile v1
+-   Ari Archer \<<ari@ari.lt>\> - Author and maintainer of Keyfile version 1
 
 ## Licensing
 
