@@ -1,4 +1,4 @@
-# Keyfile - version 1 (alpha)
+# Keyfile -- version 1 (alpha)
 
 **This is an alpha stage format, same as pDBv1 and SNAPI. Do not implement it or use it in production yet until the next stable release.**
 
@@ -9,7 +9,7 @@ of authentication, authenticity, and authorization to the access of them. This s
 of your password, meaning you shall set a strong password - clients may force users to set a strong password to not
 compromise the security of the whole system.
 
-This file has a single pass of encryption, which is good enough for obscuring the keys stored inside, although it is
+This file has multiple passes of encryption, which is good enough for obscuring the keys stored inside, although it is
 not recommended to share or spread your Keyfile publicly. It must be kept secret, and if publicly released, the
 system shall be classified as highly compromised.
 
@@ -19,127 +19,148 @@ This Keyfile format is not lightweight, same as pDBv1. It is focused on security
 
 -   File extension: `.pkf`
 -   MIME type: `application/pkf`, `application/x-pkf`
--   Magic number: `pKf<version>` (`0x70 0x4b 0x66 0x<version>`)
+-   Magic number: `pdKf` (`0x70 0x64 0x4b 0x66`, `0x70644b66`, `1885621094`)
 
 ## Format
 
-| C type         | Name           | Description                                                                                         |
-| -------------- | -------------- | --------------------------------------------------------------------------------------------------- |
-| `uint8_t[4]`   | `magic`        | The magic number of the file, including the version. Always a constant value: `0x70 0x4b 0x66 0x01` |
-| `uint8_t[64]`  | `sha3_512_sum` | The SHA3-512 hash of the whole database after the hash.                                             |
-| `uint8_t[956]` | `ksalt`        | Salt of the Keyfile. Used for deriving keys in related to and protecting the Keyfile.               |
-| `uint8_t[512]` | `isalt`        | Initial salt, used once in an encryption function.                                                  |
-| `uint8_t*`     | `keys`         | The keys and/or their parameters stored in the Keyfile. Encrypted section.                          |
+| C type         | Name           | Description                                                                                                   |
+| -------------- | -------------- | ------------------------------------------------------------------------------------------------------------- |
+| `uint8_t[4]`   | `magic`        | The magic number of the file, including the version. Always a constant value.                                 |
+| `uint16_t`     | `version`      | The version of the Keyfile. A constant value per-version. (in the case of pKf1 case - `0x01`) (little endian) |
+| `uint8_t`      | `locked`       | Is the keyfile currently locked? See lock statuses below.                                                     |
+| `uint8_t[64]`  | `sha3_512_sum` | The SHA3-512 hash of the whole database after the hash.                                                       |
+| `uint8_t[512]` | `salt`         | Keyfile salt.                                                                                                 |
+| `uint8_t[512]` | `psalt`        | Password salt.                                                                                                |
+| `uint8_t[]`    | `keys`         | The keys and/or their parameters stored in the Keyfile. Encrypted section.                                    |
+
+A generic layout of everything would look like this:
+
+    [magic][version][locked][sha3-512][salt][psalt] (header)
+    [type][size][encrypted key]... (the keys)
+    (Raw: [type][size][provision date][lifetime][salt][...]...)
+    (For instance: [0x00][size][provision date][lifetime][salt][public key size][public key][IV][key][tag][secret key]...)
+
+### Lock status
+
+-   `0x00` - Unlocked.
+-   `0x01` - Locking.
+-   `0x02` - Locked.
+-   `0x03` - Consult the database.
+-   Anything else - Unknown (format error).
 
 ## Keys format
 
-Keys format is as follows:
+The keys are a dynamic section. Every block is dynamic and the keys don't have an infinite lifetime, a key may last up to 255 days. The format is as follows:
 
-| C type                 | Name             | Description                                                                                          |
-| ---------------------- | ---------------- | ---------------------------------------------------------------------------------------------------- |
-| `uint8_t[n]`           | `salt`           | The actual salt used for cryptography in the database. `n` is decided by the database configuration. |
-| `uint16_t`             | `rsa_pk_size`    | The size of `rsa_pk`. (little endian)                                                                |
-| `uint8_t[rsa_pk_size]` | `rsa_pk`         | The RSA-4096 public key as PEM.                                                                      |
-| `uint8_t[512]`         | `rsa_sk_pw_salt` | The RSA-4096 secret key passphrase salt.                                                             |
-| `uint16_t`             | `rsa_sk_size`    | The size of `rsa_sk`. (little endian)                                                                |
-| `uint8_t[rsa_sk_size]` | `rsa_sk`         | The RSA-4096 secret key as encrypted PEM.                                                            |
+| C type          | Name   | Description                                            |
+| --------------- | ------ | ------------------------------------------------------ |
+| `uint8_t`       | `type` | The type of the key. (see types below)                 |
+| `uint64_t`      | `size` | The size of the binary blob following. (little endian) |
+| `uint8_t[size]` | `data` | The encrypted data of the key.                         |
 
-All of these are concatenated in order (from top of the table to bottom) and encrypted using AES256 in GCM mode like this:
+The keys are in order, IDs should be assigned from ID 0 being the key at the beginning of file.
+
+The encryption of data is discussed below. After the blob was encrypted it may be appended to the keyfile and decrypted.
+
+### Key types
+
+This section describes the formats for differing key formats defined by the key section. All keys are encrypted and rotating.
+Keys always have one field at the start of them:
+
+| C type         | Name             | Description                                                            |
+| -------------- | ---------------- | ---------------------------------------------------------------------- |
+| `uint64_t`     | `provision_date` | The date of key creation in UNIX UTC time, in seconds. (little endian) |
+| `uint8_t`      | `lifetime`       | Lifetime of the key in days, if zero - instant expiry.                 |
+| `uint8_t[128]` | `salt`           | 1024-bit key salt.                                                     |
+
+Followed by one of the following formats, based off the `type`:
+
+#### 0x00 - RSA-4096 keypair
+
+This is the format of an RSA-4096 public and secret keypair:
+
+| C type             | Name      | Description                                                                                       |
+| ------------------ | --------- | ------------------------------------------------------------------------------------------------- |
+| `uint16_t`         | `pk_size` | Public key size. (little endian)                                                                  |
+| `uint8_t[pk_size]` | `pk`      | Public key (DER format).                                                                          |
+| `uint8_t[12]`      | `IV`      | Secret key Initialization Vector for AES256-GCM.                                                  |
+| `uint8_t[32]`      | `key`     | Secret key encryption key for AES256-GCM.                                                         |
+| `uint8_t[16]`      | `tag`     | Encrypted secret key tag for AES256-GCM.                                                          |
+| `uint8_t[]`        | `sk`      | Secret key (DER format) encrypted using a single pass of AES256 in GCM mode using `IV` and `key`. |
+
+Encryption of the secret key would look like this:
+
+    bytes encrypt_sk(sk) {
+        # Set format fields
+        IV = random(12);
+        key = random(32);
+
+        AES256_GCM aes = AES256_GCM(iv=IV, key=key);
+
+        sk = aes.encrypt(sk);
+
+        # AES256-GCM tag is 16 bytes, sets the `tag` field
+        tag = aes.tag;
+
+        return sk;
+    }
+
+#### 0x01 - cryptographic salt
+
+This is the format of a cryptographic salt:
+
+| C type      | Name    | Description                                     |
+| ----------- | ------- | ----------------------------------------------- |
+| `uint8_t[]` | `value` | A cryptographically secure salt (random bytes). |
 
 ## Cryptography
 
-Keyfile version 1 uses AES256 in GCM mode with the Argon2 key derivation function. In pseudocode, the cryptography would look like this:
+Keyfile version 1 uses AES256 in GCM mode with the Argon2 key derivation function. In pseudocode, the cryptography of a single key would look like this:
 
-    bytes database_pw_digest = Argon2(password=database_pw, ..., hash_len=256, salt=isalt);
+    bytes encrypt_key(key, key_salt) {
+        # n starts at 0 and ends at keyfile_encryption_passes (an option configured by the database)
 
-    # n starts at 0 and ends with n = aes_crypto_passes
+        # `salt` comes from the format header
+        bytes database_pasword_digest = argon2(password=database_pasword, salt=(psalt + key_salt + salt), length=64, ...);
 
-    for n in times(aes_crypto_passes + 3) {
-        bytes s1 = random(32);
-        bytes s2 = random(32);
+        for n in repeat(keyfile_encryption_passes) {
+            bytes s1 = random(32);
+            bytes s2 = random(32);
 
-        # 32 bytes key
+            bytes IV = argon2(password=(stringify(n) + database_pasword), salt=(key_salt + database_pasword_digest + s1), length=12, ...);
+            bytes key = argon2(password=(database_pasword + stringify(n)), salt=(s2 + database_pasword_digest + key_salt), length=32, ...);
 
-        bytes key = Argon2(
-            password=(database_pw + ksalt + stringify(n)),
-            time_cost=time_cost,
-            ...,
-            hash_len=32,
-            salt=(database_pw_digest + s1),
-        )
+            AES256_GCM aes = AES256_GCM(iv=IV, key=key);
 
-        # 12 bytes IV
+            key = aes.encrypt(key);
 
-        bytes iv = Argon2(
-            password=(ksalt + stringify(n) + database_pw),
-            time_cost=time_cost,
-            ...,
-            hash_len=12,
-            salt=(s2 + database_pw_digest),
-        )
+            # AES256-GCM tag is 16 bytes
+            key = s1 + s2 + aes.tag + key;
+        }
 
-        AESGCM aes = AESGCM(
-            key=key,
-            iv=iv,
-        )
-
-        keys = aes.encrypt(keys);
-
-        # `aes.tag` is 16 bytes
-
-        keys = s1 + s2 + aes.tag + keys;
+        return key;
     }
 
-Bare in mind the randomness must be **cryptographically secure**, including the generation of random bytes (`random` function in pseudocode).
-All Argon2 parameters (including `time_cost` come from the database configuration).
+In words:
 
-In other words the single-pass encryption algorithm would be:
-
--   Generate a 256-byte database password digest using the `isalt` as the salt
--   Process is repeated `aes_crypto_passes + 3` times (configured by the database)
--   Generate two 32-byte salts: `s1` and `s2`
--   Use Argon2 to derive a 32-byte key for AES256 in GCM mode, passing in database password, current iteration of the encryption and `ksalt` concatenated and passing in `database_pw_digest + s1` as the salt
--   In a similar fashion, Initialization Vector (IV) is derived
--   AES in GCM mode encrypts the `keys`
--   `s1`, `s2`, AES GCM tag, and the ciphertext are concatenated, and the single pass of AES is done
-
-## RSA key encryption
-
-Instead of storing the private RSA key directly in the file, it is stored as encrypted PEM:
-
-    # Set the rsa_sk_pw_salt in the format
-
-    rsa_sk_pw_salt = random(512);
-
-    bytes database_pw_digest = Argon2(password=database_pw, ..., hash_len=256, salt=(ksalt + isalt));
-
-    bytes key = Argon2(
-        password=(rsa_sk_pw_salt + database_pw),
-        time_cost=time_cost,
-        ...,
-        hash_len=256,
-        salt=database_pw_digest,
-    )
-
-    rsa_pk = export_as_pem(key=public_rsa_key);
-    rsa_sk = export_as_encryped_pem(key=secret_rsa_key, password=key);
-
-The algorithm is simple:
-
--   Generate a cryptographically secure 512-byte RSA secret key salt
--   Derive a 256-byte database password digest from the password database and `ksalt + isalt` concatenated
--   Using Argon2, derive a 256-byte (2048-bit) passphrase for encrypting the private RSA key
--   Export the public RSA key as PEM
--   Export the private RSA key as encrypted PEM, using the derived key as the password
+-   Using Argon2, an initial 64-byte digest of the database password is derived, using `psalt`, `key_salt`, and `salt` as salt
+-   Now, a loop that will loop `keyfile_encryption_passes` times starts, storing the current iteration number in `n` (which starts at 0)
+-   Two 32-byte cryptographically secure salts are generated called `s1` and `s2`
+-   A 12-byte Initialization Vector (IV) is derived using Argon2, passing in the current iteration number and database password as the passphrase and `key_salt` along with database password digest and `s1` as the salt.
+-   In a similar fashion, although shuffled, a 32-byte key is derived (see pseudocode).
+-   The derived values are passed to AES256 in GCM mode, data is encrypted and reassigned.
+-   The data is reassigned to `s1 + s2 + GCM tag + <data>`.
+-   Process is repeated.
 
 ## Verification
 
--   Identify the file by the magic number
--   Verify the hash of the Keyfile
--   Decryption steps should succeed, including the GCM authentication checks
--   The version of the Keyfile can be used by the database version (usually meaning the versions have to be the same)
+-   The magic number of the file is correct. (basic corruption and file type check)
+-   The version is supported by the target database. (support check)
+-   The database is not currently locked. (access check, to prevent collisions)
+-   The SHA3-512 sum of the database is correct. (integrity check)
+-   All keys are decryptable and valid. (integrity, authentication, and authorization checks (because a password, correct tag, and correct ciphertext is required))
 
-If any of the checks fail, you shall terminate the access to the database to prevent any damage or tampered with data
+If any of the checks fail, you shall terminate the access to the database to prevent any damage or tampered with data.
 
 ## Authors
 
