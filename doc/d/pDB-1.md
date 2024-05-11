@@ -781,7 +781,7 @@ Be careful when using any of them.
     -   `p`: Password store.
     -   `d`: Derived/computed password store. "No storage" password store.
     -   `t`: TOTP store (some clients may use this type to generate & copy TOTP codes instead of the TOTP key).
--   `n`: Name of the entry (RC4 encrypted, **DO NOT STORE SENSITIVE INFORMATION IN REMARKS**).
+-   `n`: Name of the entry (RC4 encrypted, **DO NOT STORE SENSITIVE INFORMATION IN NAMES**).
 -   `r`: Remark of the entry (RC4 encrypted, **DO NOT STORE SENSITIVE INFORMATION IN REMARKS**).
 -   `e`: Encrypted section of the entry (an encrypted entry, see encryption subsection below).
     -   If `t` is `p`: Password store.
