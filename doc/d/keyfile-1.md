@@ -9,9 +9,8 @@ of authentication, authenticity, and authorization to the access of them. This s
 of your password, meaning you shall set a strong password - clients may force users to set a strong password to not
 compromise the security of the Keyfile system.
 
-This file has multiple passes of encryption, which is good enough for obscuring the keys stored inside, although it is
-not recommended to share or spread your Keyfile publicly. It must be kept secret, and if publicly released, the
-system shall be classified as highly compromised.
+This file format has multiple passes of encryption with a single algorithm, which is good enough for obscuring the keys stored inside, although it is
+not recommended to share or spread your Keyfile publicly. It must be kept secret, and if publicly released, the system shall be classified as highly compromised.
 
 ## File identifiers
 
@@ -21,14 +20,16 @@ system shall be classified as highly compromised.
 
 ## Format
 
-| C type         | Name           | Description                                                                                                   |
-| -------------- | -------------- | ------------------------------------------------------------------------------------------------------------- |
-| `uint8_t[4]`   | `magic`        | The magic number of the file. Always a constant value.                                                        |
-| `uint16_t`     | `version`      | The version of the Keyfile. A constant value per-version. (in the case of pKf1 case - `0x01`) (little endian) |
-| `uint8_t`      | `locked`       | Is the Keyfile currently locked? See lock statuses below.                                                     |
-| `uint8_t[64]`  | `sha3_512_sum` | The SHA3-512 hash of the whole database after the hash.                                                       |
-| `uint8_t[512]` | `salt`         | Keyfile salt.                                                                                                 |
-| `uint8_t[]`    | `keys`         | The keys and/or their parameters stored in the Keyfile. Dynamic section of encrypted chunks.                  |
+All multi-byte types (anything above `uint8_t` (so `uint16_t`, `uint32_t`, `uint64_t`, ...)) are little-endian values.
+
+| C type         | Name           | Description                                                                                    |
+| -------------- | -------------- | ---------------------------------------------------------------------------------------------- |
+| `uint8_t[4]`   | `magic`        | The magic number of the file. Always a constant value.                                         |
+| `uint16_t`     | `version`      | The version of the Keyfile. A constant value per-version. (in the case of pKfv1 case - `0x01`) |
+| `uint8_t`      | `lock`         | Is the Keyfile currently locked/locking/...? See lock statuses below.                          |
+| `uint8_t[64]`  | `sha3_512_sum` | The SHA3-512 hash of the whole database after the hash.                                        |
+| `uint8_t[512]` | `salt`         | Keyfile salt.                                                                                  |
+| `uint8_t[]`    | `keys`         | The keys and/or their parameters stored in the Keyfile. Dynamic section of encrypted chunks.   |
 
 A generic layout of everything would look like this:
 
@@ -50,11 +51,11 @@ A generic layout of everything would look like this:
 
 The keys are a dynamic section of encrypted chunks. Every block is dynamic and the keys don't have an infinite lifetime, a key may last up to 255 days. The format is as follows:
 
-| C type          | Name   | Description                                            |
-| --------------- | ------ | ------------------------------------------------------ |
-| `uint8_t`       | `type` | The type of the key. (see types below)                 |
-| `uint64_t`      | `size` | The size of the binary blob following. (little endian) |
-| `uint8_t[size]` | `data` | The encrypted data of the key.                         |
+| C type          | Name   | Description                            |
+| --------------- | ------ | -------------------------------------- |
+| `uint8_t`       | `type` | The type of the key. (see types below) |
+| `uint64_t`      | `size` | The size of the binary blob following. |
+| `uint8_t[size]` | `data` | The encrypted data of the key.         |
 
 The keys are in order, IDs should be assigned from ID 0, 0 being the key at the beginning of file.
 
@@ -65,11 +66,13 @@ The encryption of data is discussed below. After the blob was encrypted it may b
 This section describes the formats for differing key formats defined by the key section. All keys are encrypted and timestamped.
 Keys always have these fields before the actual data:
 
-| C type         | Name                  | Description                                                            |
-| -------------- | --------------------- | ---------------------------------------------------------------------- |
-| `uint64_t`     | `provision_timestamp` | The date of key creation in UNIX UTC time, in seconds. (little endian) |
-| `uint8_t`      | `lifetime`            | Lifetime of the key in days, if zero - instant expiry.                 |
-| `uint8_t[128]` | `salt`                | 1024-bit key salt.                                                     |
+(All multi-byte types (anything above `uint8_t` (so `uint16_t`, `uint32_t`, `uint64_t`, ...)) are little-endian values.)
+
+| C type         | Name                  | Description                                            |
+| -------------- | --------------------- | ------------------------------------------------------ |
+| `uint64_t`     | `provision_timestamp` | The date of key creation in UNIX UTC time, in seconds. |
+| `uint8_t`      | `lifetime`            | Lifetime of the key in days, if zero - instant expiry. |
+| `uint8_t[128]` | `salt`                | 1024-bit key salt.                                     |
 
 (Formula to check the expiration status: `(current_timestamp - provision_timestamp) > (lifetime * 24 * 60 * 60) `, where `current_timestamp` is the current (as time of accessing `provision_timestamp`) UTC UNIX time timestamp)
 
@@ -79,31 +82,38 @@ Followed by one of the following formats, based off the `type`:
 
 This is the format of an RSA-4096 public and secret key pair:
 
-| C type             | Name      | Description                                                                                       |
-| ------------------ | --------- | ------------------------------------------------------------------------------------------------- |
-| `uint16_t`         | `pk_size` | Public key size. (little endian)                                                                  |
-| `uint8_t[pk_size]` | `pk`      | Public key (DER format).                                                                          |
-| `uint8_t[12]`      | `IV`      | Secret key Initialization Vector for AES256-GCM.                                                  |
-| `uint8_t[32]`      | `key`     | Secret key encryption key for AES256-GCM.                                                         |
-| `uint8_t[16]`      | `tag`     | Encrypted secret key tag for AES256-GCM.                                                          |
-| `uint8_t[]`        | `sk`      | Secret key (DER format) encrypted using a single pass of AES256 in GCM mode using `IV` and `key`. |
+(All multi-byte types (anything above `uint8_t` (so `uint16_t`, `uint32_t`, `uint64_t`, ...)) are little-endian values.)
+
+| C type             | Name      | Description                                                                 |
+| ------------------ | --------- | --------------------------------------------------------------------------- |
+| `uint16_t`         | `pk_size` | Public key size.                                                            |
+| `uint8_t[pk_size]` | `pk`      | Public key (DER format).                                                    |
+| `uint8_t[]`        | `sk`      | Secret key (DER format) encrypted using a single pass of ChaCha20-Poly1305. |
 
 Encryption of the secret key would look like this:
 
     bytes encrypt_sk(sk) {
-        # Set format fields
-        IV = random(12);
-        key = random(32);
+        bytes assoc = random(32);
+        bytes nonce = random(12);
 
-        AES256_GCM aes = AES256_GCM(iv=IV, key=key);
+        bytes key = argon2(password=(database_pasword + nonce), salt=assoc, length=32, ... (parameters configured by database));
 
-        sk = aes.encrypt(sk);
+        ChaCha20Poly1305 chacha = ChaCha20Poly1305(key=key);
 
-        # AES256-GCM tag is 16 bytes, sets the `tag` field
-        tag = aes.tag;
+        # Encrypt the secret key
+        bytes ciphertext = chacha.encrypt(data=sk, nonce=nonce, associated_data=assoc);
 
-        return sk;
+        return assoc + nonce + ciphertext;
     }
+
+This pseudocode means:
+
+-   Generate 32 bytes of associated data with the key.
+-   Generate a 12-byte nonce for ChaCha20-Poly1305.
+-   Derive a key using Argon2, password being the database password and the nonce concatenated and the salt being the associated data.
+-   Pass in the key to ChaCha20-Poly1305.
+-   Encrypt the secret key, passing in the nonce and the associated data
+-   Concatenate the associated data, the nonce, and the ciphertext, and return it as the final ciphertext.
 
 #### 0x01 - cryptographic salt
 
@@ -115,40 +125,49 @@ This is the format of a cryptographic salt:
 
 ## Cryptography
 
-Keyfile version 1 uses AES256 in GCM mode with the Argon2 key derivation function. In pseudocode, the cryptography of a single key would look like this:
+Keyfile version 1 uses ChaCha20-Poly1305 with the Argon2 key derivation function. In pseudocode, the cryptography of a single key would look like this:
 
     bytes encrypt_key(key, key_salt) {
         # `salt` comes from the format header
-        bytes database_pasword_digest = argon2(password=database_pasword, salt=(salt + key_salt + psalt), length=256, ...);
+        bytes database_pasword_digest = argon2(password=(database_pasword + psalt), salt=(salt + key_salt), length=256, ... (parameters configured by database));
 
-        # n starts at 0 and ends at keyfile_encryption_passes (an option configured by the database)
-        for n in repeat(keyfile_encryption_passes) {
-            bytes s1 = random(32);
-            bytes s2 = random(32);
+        for _ in repeat(keyfile_crypto_passes) {
+            bytes ks = random(32);
 
-            bytes IV = argon2(password=(stringify(n) + database_pasword), salt=(key_salt + database_pasword_digest + s1), length=12, ...);
-            bytes key = argon2(password=(database_pasword + stringify(n)), salt=(s2 + database_pasword_digest + key_salt), length=32, ...);
+            bytes assoc = random(32);
+            bytes nonce = random(12);
 
-            AES256_GCM aes = AES256_GCM(iv=IV, key=key);
+            bytes key = argon2(password=(database_pasword + assoc + nonce), salt=(ks + database_pasword_digest + key_salt), length=32, ...);
 
-            key = aes.encrypt(key);
+            ChaCha20Poly1305 chacha = ChaCha20Poly1305(key=key);
 
-            # AES256-GCM tag is 16 bytes
-            key = s1 + s2 + aes.tag + key;
+            key = chacha.encrypt(data=key, nonce=nonce, associated_data=assoc);
+            key = ks + assoc + nonce + key;
         }
 
         return key;
     }
 
-In words:
+In other words:
 
--   Using Argon2, an initial 256-byte digest of the database password is derived, using `psalt` (configured by the database, at least 256 bytes), `key_salt`, and `salt` as salt
--   Now, a loop that will loop `keyfile_encryption_passes` times starts, storing the current iteration number in `n` (which starts at 0)
--   Two 32-byte cryptographically secure salts are generated called `s1` and `s2`
--   A 12-byte Initialization Vector (IV) is derived using Argon2, passing in the current iteration number and database password as the passphrase and `key_salt` along with database password digest and `s1` as the salt.
--   In a similar fashion, although shuffled, a 32-byte key is derived (see pseudocode).
--   The derived values are passed to AES256 in GCM mode, data is encrypted and reassigned.
--   The data is reassigned to `s1 + s2 + GCM tag + <data>`.
+-   Initially a 256-byte database password digest is derived using Argon2, passing in the database password and `psalt` (configured by the database) as the password, and the Keyfile salt and key salt as the salt.
+-   A loop of `keyfile_crypto_passes` is started (configured by the database).
+-   A 32-byte cryptographically secure salt is generated called `ks`.
+-   32 bytes of associative data called `assoc` is generated to be later passed to ChaCha20-Poly1305.
+-   A cryptographically secure 12-byte nonce is generated for ChaCha20-Poly1305.
+-   32-byte key is derived using Argon2, passing in the following parameters (every sublist is concatenated in order):
+    -   Password
+        -   Database password.
+        -   Associated data.
+        -   `nonce`
+    -   Salt
+        -   `ks`
+        -   Database password digest.
+        -   `key_salt`
+    -   Rest of the arguments are configured by the database.
+-   The key is passed to ChaCha20-Poly1305.
+-   Key is encrypted using ChaCha20-Poly1305 passing in the key, the nonce, and the associated data.
+-   Key is reassigned to a concatenation of `ks`, associated data, the nonce, and the ciphertext.
 -   Process is repeated.
 
 ## Verification
@@ -157,14 +176,17 @@ In words:
 -   The version is supported by the target database. (support check)
 -   The database is not currently locked. (access check, to prevent collisions)
 -   The SHA3-512 sum of the database is correct. (integrity check)
--   All keys are decryptable and valid. (integrity, authentication, and authorization checks (because a password, correct tag, and correct ciphertext is required))
+-   All keys are decryptable and valid. (integrity, authentication, and authorization checks (because a password, correct nonce and associated data, and correct ciphertext is required))
 
 If any of the checks fail, you shall terminate the access to the database to prevent any damage or tampered with data.
 
-## Authors
+## pKfv1: Authors
 
--   Ari Archer \<<ari@ari.lt>\> - Author and maintainer of Keyfile version 1
+-   Ari Archer \<<ari@ari.lt>\> \[<https://ari.lt/>\]
 
 ## Licensing
 
-This document is licensed under AGPL-3.0-or-later, the author being Ari Archer \<<ari@ari.lt>\> as provided as a part of the Armour project.
+    "pDB Keyfile version 1 (pKfv1) file format and specification" is licensed under the GNU General Public License version 3 or later (GPL-3.0-or-later).
+
+    You should have received a copy of the GNU General Public License along with this program.
+    If not, see <https://www.gnu.org/licenses/>.
