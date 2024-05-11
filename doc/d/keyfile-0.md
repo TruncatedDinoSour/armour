@@ -1,4 +1,4 @@
-# Keyfile -- version 1 (alpha)
+# Keyfile -- version 0 (alpha)
 
 **This is an alpha stage format, same as pDBv1 and SNAPI. Do not implement it or use it in production yet until the next stable release.**
 
@@ -22,28 +22,47 @@ not recommended to share or spread your Keyfile publicly. It must be kept secret
 
 All multi-byte types (anything above `uint8_t` (so `uint16_t`, `uint32_t`, `uint64_t`, ...)) are little-endian values.
 
-| C type         | Name           | Description                                                                                    |
-| -------------- | -------------- | ---------------------------------------------------------------------------------------------- |
-| `uint8_t[4]`   | `magic`        | The magic number of the file. Always a constant value.                                         |
-| `uint16_t`     | `version`      | The version of the Keyfile. A constant value per-version. (in the case of pKfv1 case - `0x01`) |
-| `uint8_t`      | `lock`         | Is the Keyfile currently locked/locking/...? See lock statuses below.                          |
-| `uint8_t[64]`  | `sha3_512_sum` | The SHA3-512 hash of the whole database after the hash.                                        |
-| `uint8_t[512]` | `salt`         | Keyfile salt.                                                                                  |
-| `uint8_t[]`    | `keys`         | The keys and/or their parameters stored in the Keyfile. Dynamic section of encrypted chunks.   |
+| C type         | Name                                 | Description                                                                                                              |
+| -------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `uint8_t[4]`   | `magic`                              | The magic number of the file. Always a constant value.                                                                   |
+| `uint16_t`     | `version`                            | The version of the Keyfile. A constant value per-version. (in the case of pKfv0 case - `0x00`)                           |
+| `uint8_t`      | `lock`                               | Is the Keyfile currently locked/locking/...? See lock statuses below.                                                    |
+| `uint8_t[512]` | `salt`                               | Keyfile salt.                                                                                                            |
+| `uint16_t`     | `db_AES_crypto_passes`               | When using AES256 cryptography in GCM (Galois/Counter) mode in the database, how many times should the algorithm me ran? |
+| `uint16_t`     | `db_ChaCha20_Poly1305_crypto_passes` | When using ChaCha20-Poly1305 cryptography in the database, how many times should the algorithm me ran?                   |
+| `uint8_t[64]`  | `db_pepper`                          | 512 bits of cryptographically secure information which are always constant, used for peppering of data in the database.  |
+| `uint8_t[64]`  | `sha3_512_sum`                       | The SHA3-512 hash of the whole database after the hash.                                                                  |
+| `uint8_t[]`    | `keys`                               | The keys and/or their parameters stored in the Keyfile. Dynamic section of encrypted chunks.                             |
 
 A generic layout of everything would look like this:
 
-    [magic][version][locked][sha3-512][salt] (header)
+    [magic][0x00][locked][sha3-512][salt] (header)
     [type][size][encrypted key]... (the keys)
     (Raw: [type][size][provision date][lifetime][salt][...]...)
     (For instance: [0x00][size][provision date][lifetime][salt][public key size][public key][IV][key][tag][secret key]...)
+
+Please note that Keyfile depends on pDB database for these parameters:
+
+-   `Argon2_type`
+-   `Argon2_time_cost`
+-   `Argon2_memory_cost`
+-   `psalt`
+
+While the database depends on all parameters with the `db_` prefix, so:
+
+-   `db_AES_crypto_passes`
+-   `db_ChaCha20_Poly1305_crypto_passes`
+-   `db_pepper`
+
+Don't be confused when you see those parameters in this document, assume they come from the pDB database.
 
 ### Lock status
 
 -   `0x00` - Unlocked.
 -   `0x01` - Locking.
 -   `0x02` - Locked.
--   `0x03` - Consult the database.
+-   `0x03` - Releasing.
+-   `0x04` - Consult the database.
     -   Normal lock resolution process is executed on the database (including SNAPI resolution).
 -   Anything else - Unknown (format error).
 
@@ -57,7 +76,7 @@ The keys are a dynamic section of encrypted chunks. Every block is dynamic and t
 | `uint64_t`      | `size` | The size of the binary blob following. |
 | `uint8_t[size]` | `data` | The encrypted data of the key.         |
 
-The keys are in order, IDs should be assigned from ID 0, 0 being the key at the beginning of file.
+The keys are in order, IDs should be assigned from ID 0, 0 being the key at the beginning of file, IDs are of type `uint64_t`.
 
 The encryption of data is discussed below. After the blob was encrypted it may be appended to the Keyfile.
 
@@ -125,7 +144,7 @@ This is the format of a cryptographic salt:
 
 ## Cryptography
 
-Keyfile version 1 uses ChaCha20-Poly1305 with the Argon2 key derivation function. In pseudocode, the cryptography of a single key would look like this:
+Keyfile version 0 uses ChaCha20-Poly1305 with the Argon2 key derivation function. In pseudocode, the cryptography of a single key would look like this:
 
     bytes encrypt_key(key, key_salt) {
         # `salt` comes from the format header
@@ -170,23 +189,26 @@ In other words:
 -   Key is reassigned to a concatenation of `ks`, associated data, the nonce, and the ciphertext.
 -   Process is repeated.
 
-## Verification
+## Validation
 
 -   The magic number of the file is correct. (basic corruption and file type check)
 -   The version is supported by the target database. (support check)
--   The database is not currently locked. (access check, to prevent collisions)
+-   The Keyfile is not currently locked. (access check, to prevent collisions)
+-   `db_AES_crypto_passes` is at least `1`.
+-   `db_ChaCha20_Poly1305_crypto_passes` is at least `1`.
 -   The SHA3-512 sum of the database is correct. (integrity check)
 -   All keys are decryptable and valid. (integrity, authentication, and authorization checks (because a password, correct nonce and associated data, and correct ciphertext is required))
+-   The provision date of any key must not be into the future.
 
 If any of the checks fail, you shall terminate the access to the database to prevent any damage or tampered with data.
 
-## pKfv1: Authors
+## Authors
 
 -   Ari Archer \<<ari@ari.lt>\> \[<https://ari.lt/>\]
 
 ## Licensing
 
-    "pDB Keyfile version 1 (pKfv1) file format and specification" is licensed under the GNU General Public License version 3 or later (GPL-3.0-or-later).
+    "pDB Keyfile version 0 (pKfv0) file format and specification" is licensed under the GNU General Public License version 3 or later (GPL-3.0-or-later).
 
     You should have received a copy of the GNU General Public License along with this program.
     If not, see <https://www.gnu.org/licenses/>.
