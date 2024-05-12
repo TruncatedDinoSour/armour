@@ -161,7 +161,7 @@ so if ur making a user<->db interface here are suggestions :
 or maybe use presets with pre-configured options, or maybe configure everything based
 off the users hardware and stuff
 
-## pDBv0: Authors
+## Authors
 
 -   Ari Archer \<<ari@ari.lt>\> \[<https://ari.lt/>\]
 

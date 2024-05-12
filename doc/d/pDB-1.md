@@ -6,6 +6,8 @@ This is the official pDB specification document describing the exact structure o
 file format. Its purpose is to serve as detailed documentation for any implementations of this format, such as SDKs,
 clients and other pieces of code utilizing it.
 
+**Last modified**: 2024-05-12
+
 ## Introduction
 
 Password Database Version 1 (pDBv1) is a little-endian, secure, encrypted password database as a successor of pDBv0.
@@ -526,6 +528,18 @@ We use multiple passes ChaCha20-Poly1305 to encrypt data like this:
         # `n` starts at 0 and ends at the value db_AES_crypto_passes is
 
         for n in repeat(db_ChaCha20_Poly1305_crypto_passes) {
+            # Pad the data
+
+            number padding_size = 31 - (len(data) % 32);
+
+            if (padding_size > 0) {
+                data = data + random(padding_size);
+            }
+
+            data = data + as_uint8_le(padding_size);
+
+            # Encrypt
+
             bytes chacha_salt = random(salt_size);
             bytes authenticated_data = random(authentication_size);
 
@@ -554,6 +568,7 @@ In other words:
 
 -   A 32-byte initial salt is generated, called `initial_salt`.
 -   A loop which iterates `db_ChaCha20_Poly1305_crypto_passes` times is started, storing the current iteration number in `n`.
+-   Data is padded to 32 byte block size. Padding size is appended to the data as a `uint8_t`.
 -   A `salt_size`-byte salt is generated called `chacha_salt`.
 -   A `authentication_size`-byte authentication data blob is generated called `authenticated_data`.
 -   A 32-byte key a derived using SHA3-256, passing in the current iteration number, database password, database pepper bytes, salt, and the initially generated salt to the function.
