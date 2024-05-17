@@ -3,7 +3,7 @@
 This document describes the standard network API (SNAPI) for pDBv1+.
 SNAPI is used for interacting with pDB and Keyfile structures over a network interface.
 
-**Last modified**: 2024-05-12
+**Last modified**: 2024-05-18
 
 ## Introduction
 

@@ -6,7 +6,7 @@ This is the official pDB specification document describing the exact structure o
 file format. Its purpose is to serve as detailed documentation for any implementations of this format, such as SDKs,
 clients and other pieces of code utilizing it.
 
-**Last modified**: 2024-05-12
+**Last modified**: 2024-05-18
 
 ## Introduction
 
