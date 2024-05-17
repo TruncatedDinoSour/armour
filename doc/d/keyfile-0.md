@@ -55,7 +55,7 @@ While the database depends on all parameters with the `db_` prefix, so:
 -   `db_ChaCha20_Poly1305_crypto_passes`
 -   `db_pepper`
 
-Don't be confused when you see those parameters in this document, assume they come from the pDB database.
+Do not be confused when you see those parameters in this document, assume they come from the pDB database.
 
 ### Lock status
 
@@ -69,12 +69,12 @@ Don't be confused when you see those parameters in this document, assume they co
 
 ## Keys format
 
-The keys are a dynamic section of encrypted chunks. Every block is dynamic and the keys don't have an infinite lifetime, a key may last up to 255 days. The format is as follows:
+The keys are a dynamic section of encrypted chunks. Every block is dynamic and the keys do not have an infinite lifetime, a key may last up to 255 days. The format is as follows:
 
 | C type          | Name   | Description                            |
 | --------------- | ------ | -------------------------------------- |
 | `uint8_t`       | `type` | The type of the key. (see types below) |
-| `uint64_t`      | `size` | The size of the binary blob following. |
+| `uint32_t`      | `size` | The size of the binary blob following. |
 | `uint8_t[size]` | `data` | The encrypted data of the key.         |
 
 The keys are in order, IDs should be assigned from ID 0, 0 being the key at the beginning of file, IDs are of type `uint64_t`,

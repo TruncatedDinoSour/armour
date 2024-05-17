@@ -68,11 +68,11 @@ and where it could theoretically be improved to minimize the possible attack sur
 
 ### Areas for improvement
 
--   Complexity and Performance: The format is fairly complex, and the performance of it, mainly because of the complexity, isn't great.
+-   Complexity and Performance: The format is fairly complex, and the performance of it, mainly because of the complexity, is not great.
     -   Can only be improved by removing features.
 -   Quantum resistance: The format has theoretical weaknesses for when powerful quantum computers become a thing. For future-proofing it may be beneficial to look into it.
     -   Currently not very possible to protect against, because of how new this branch of cryptography is.
--   Side-Channel attacks: There's a possibility of side-channel attacks in the AES layer. Even though it's not much of a problem on a local system, it should still be looked into harder.
+-   Side-Channel attacks: There is a possibility of side-channel attacks in the AES layer. Even though it is not much of a problem on a local system, it should still be looked into harder.
     -   A vulnerability in the hardware implementation of AES.
 
 ## Clients
@@ -82,7 +82,7 @@ This section includes a list of SDKs, libraries, user interfaces, etc. (collecti
 -   [Stable, Official] Armour SDK from the Armour project by Ari Archer \<<ari@ari.lt>\> licensed under GPL-3.0-or-later: <https://ari.lt/gh/armour> (supports: pDBv0, pDBv1, SNAPI)
     -   [Stable, Official] "Pwdmgr" Client from the Pwdtools project using the Armour SDK by Ari Archer \<<ari@ari.lt>\> licensed under GPL-3.0-or-later: <https://ari.lt/gh/pwdtools> (Client ID: `Pwdmgr`)
 
-If you're planning on implementing a client, you must get familiar with the whole specifications of Keyfile, pDB, and optionally SNAPI (if you're implementing the SNAPI).
+If you are planning on implementing a client, you must get familiar with the whole specifications of Keyfile, pDB, and optionally SNAPI (if you are implementing the SNAPI).
 It is a complex task requiring a lot of different implementations of different algorithms, a lot of management, and a lot of parsing.
 
 ## File identifiers
@@ -111,7 +111,7 @@ All multi-byte types (anything above `uint8_t` (so `uint16_t`, `uint32_t`, `uint
 | `uint8_t`                | `Argon2_type`            | Argon2 key derivation function type (discussed below).                                                                            |
 | `uint32_t`               | `Argon2_time_cost`       | Argon2 key derivation function Time Cost parameter. Represents the number of iterations of the hash function.                     |
 | `uint32_t`               | `Argon2_memory_cost`     | Argon2 key derivation function Memory Cost parameter. A larger memory cost makes the hash function require more memory.           |
-| `uint64_t`               | `psalt_size`             | The size of the `psalt` following this argument.                                                                                  |
+| `uint32_t`               | `psalt_size`             | The size of the `psalt` following this argument.                                                                                  |
 | `uint8_t[psalt_size]`    | `psalt`                  | When opening a pDB Keyfile, a `psalt` (password salt) is passed to it to cross-authenticate, this is used to salt the password.   |
 | `uint16_t`               | `salt_size`              | Whenever a salt is required in the database, this number is used as a base salt length.                                           |
 | `uint16_t`               | `authentication_size`    | When authentication data is generated in the database, how big should it be?                                                      |
@@ -119,7 +119,7 @@ All multi-byte types (anything above `uint8_t` (so `uint16_t`, `uint32_t`, `uint
 | `uint16_t`               | `chunk_identifier_size`  | Chunk identifier size in bytes. You can calculate the maximum possible entry count using `f(x)=256^{x}-1` where `x` is the value. |
 | `uint16_t`               | `chunk_size`             | Chunk size of encrypted entries in the database. `chunk_size` must be larger then `chunk_identifier_size`.                        |
 | `uint8_t[64]`            | `metadata_hash_SHA3_512` | SHA3-512 hash of the metadata following it (including the size).                                                                  |
-| `uint64_t`               | `metadata_size`          | Size of the metadata section following the size.                                                                                  |
+| `uint32_t`               | `metadata_size`          | Size of the metadata section following the size.                                                                                  |
 | `uint8_t[metadata_size]` | `metadata`               | Human and machine -readable metadata section (metadata format is discussed below).                                                |
 | `uint8_t[64]`            | `header_hash_SHA3_512`   | SHA3-512 hash of the whole header before this section.                                                                            |
 | `uint8_t`                | `lock`                   | Lock status of the database. See lock statuses below.                                                                             |
@@ -139,12 +139,12 @@ While the Keyfile depends on:
 -   `Argon2_memory_cost`
 -   `psalt`
 
-Don't be confused when you see those parameters in this document, assume they come from the Keyfile.
+Do not be confused when you see those parameters in this document, assume they come from the Keyfile.
 
 ### Argon2 type
 
 -   `0x00` - Argon2D - faster and makes better use of available processing power, thus making it more resistant against GPU cracking attacks, however, it is more susceptible to side-channel attacks.
--   `0x01` - Argon2I - slower and uses more memory, making it more secure against attacks that aim to determine a password by trying every possible combination, however, it's not as resistant against GPU attacks as Argon2D.
+-   `0x01` - Argon2I - slower and uses more memory, making it more secure against attacks that aim to determine a password by trying every possible combination, however, it is not as resistant against GPU attacks as Argon2D.
 -   `0x02` - Argon2ID - combines the benefits of both Argon2D and Argon2I by using Argon2I at the beginning and Argon2D for the rest of the process, aiming to maximize the advantages of both processes while minimizing their disadvantages, thus providing a safer hashing algorithm - this is the recommended Argon2 type.
 -   No other types of Argon2 exist yet.
 
@@ -166,7 +166,7 @@ are in hypothetical order, so you can implement them in any way you want:
 -   Version of the database is supported by the client.
 -   Database is unlocked. (jump to `lock`)
 -   SHA3-512 hash of the whole header is valid. (jump to `header_hash_SHA3_512`)
--   ZSTD compression level is between `0` and `22` (you can safely check if it's below 23 or below or equal to 23, as the value is unsigned).
+-   ZSTD compression level is between `0` and `22` (you can safely check if it is below 23 or below or equal to 23, as the value is unsigned).
 -   Argon2 type exists.
 -   Argon2 time cost is at least `3`.
 -   Argon2 memory cost is at least `65536`.
@@ -208,7 +208,7 @@ These 6 keys should ideally have a different lifetime each.
 
 The purpose of having 3 available keys at any given time is to avoid reusing same keys. Any given key type
 required should be picked from available keys. If the set of keys it can pick is below 3 keys, keys are provisioned
-until there's at least 3 available keys of the queried type. In other words:
+until there is at least 3 available keys of the queried type. In other words:
 
     enum KeyType {
         RSA_KEYPAIR,
@@ -233,7 +233,7 @@ until there's at least 3 available keys of the queried type. In other words:
     }
 
 This would be a base algorithm for selecting a key. From now, whenever `get_key` is used in pseudocode, assume the above function.
-Ideally `get_key` would also implement `get_key_id` to get the ID of the key - this function will also be used, but there's no
+Ideally `get_key` would also implement `get_key_id` to get the ID of the key - this function will also be used, but there is no
 pseudorandom implementation, this will depend on your data structure, most likely at least. You can also loop over all available keys
 and look for the specific key, which is not ideal:
 
@@ -356,7 +356,7 @@ This is exactly why the general encryption pipeline would look like this:
 
 1. Starting with Threefish then layering it with ChaCha20 provides good security and performance.
 2. AES is used after ChaCha20 to further increase the security of the cypher-text.
-3. As RSA isn't very suitable for encrypting large blobs of data, we compress it using ZSTD, which will add integrity insurance to our data, increase its entropy, and will also make the size of data reasonable.
+3. As RSA is not very suitable for encrypting large blobs of data, we compress it using ZSTD, which will add integrity insurance to our data, increase its entropy, and will also make the size of data reasonable.
 4. Then RSA is applied, to take advantage of its public/private key infrastructure for an additional layer of security, and to finish off the cryptography.
 
 To address the quantum encryption worries, please read "Quantum computing" subsection below.
@@ -403,14 +403,14 @@ In other words:
 -   Use Optimal Asymmetric Encryption Padding (OAEP) with the MGF1 (Mask Generation Function), both using the SHA512 hashing function.
 -   Pass the chunk to RSA 4096, with the OAEP padding.
 -   To the cypher-text append the label, RSA cypher-text length as 2-byte little-endian `uint16_t`, and the chunk cypher-text.
--   Repeat the process until there's no more chunks left.
+-   Repeat the process until there is no more chunks left.
 -   Using the SHA3-512 hashing algorithm, hash the final cypher-text, and prepend it to the final cypher-text.
 
 This implementation will improve the security, authenticity, and integrity of the data. It also has multiple advantages to just RSA 4096:
 
--   It can encrypt any amount of data, by splitting it into 382-byte blocks. (however, this doesn't make RSA a block cipher)
+-   It can encrypt any amount of data, by splitting it into 382-byte blocks. (however, this does not make RSA a block cipher)
 -   It generates a random label for every block, adding more entropy and security.
--   It hashes all cypher-text, ensuring there's no tampering going on with it.
+-   It hashes all cypher-text, ensuring there is no tampering going on with it.
 
 RSA 4096 in our use case is theoretically vulnerable to the following vulnerabilities:
 
@@ -426,8 +426,8 @@ fast and secure encryption. AES255-GCM is generally used in secure file transfer
 and for the encryption of data. AES256-GCM not only provides a high level of security, but also is highly efficient in terms of processing needs.
 GCM mode of AES also provides data authentication, which helps to ensure the cipher- or clear- text was not tampered with in any way.
 
-As it's a fairly efficient symmetric block cipher, it can be ran multiple times easily without major issues, enhancing the security and depth of
-the encryption. Here's how pDBv1 utilizes AES 256 in GCM mode:
+As it is a fairly efficient symmetric block cipher, it can be ran multiple times easily without major issues, enhancing the security and depth of
+the encryption. Here is how pDBv1 utilizes AES 256 in GCM mode:
 
     # salt = get_key(CRYPTO_SALT);
 
@@ -606,7 +606,15 @@ In pDBv1 we use a single pass of Threefish:
     bytes encrypt_threefish(bytes data, bytes salt) {
         bytes cypher_text = "";
 
-        for chunk in split(data, 127) {
+        number padding_size = 127 - (len(data) % 128);
+
+        if (padding_size > 0) {
+            data = data + random(padding_size);
+        }
+
+        data = data + as_uint8_le(padding_size);
+
+        for chunk in split(data, 128) {
             bytes tweak = random(16);
 
             bytes key = argon2(
@@ -615,14 +623,6 @@ In pDBv1 we use a single pass of Threefish:
                 length=128,
                 ... (determined by the database parameters),
             );
-
-            number padding_size = 127 - len(chunk);
-
-            if (padding_size > 0) {
-                chunk = chunk + random(padding_size);
-            }
-
-            chunk = chunk + as_uint8_le(padding_size);
 
             bytes tf_cypher_text = threefish(data=chunk, key=key, tweak=tweak);
 
@@ -635,15 +635,13 @@ In pDBv1 we use a single pass of Threefish:
 
 In other words:
 
--   The data is split into 127-byte chunks or less. Threefish 1024 uses 128-byte blocks, but we reserve the last byte for the padding size.
+-   The input data is padded to a block size of 128 bytes.
+-   The data is split into 128-byte chunks or less. Threefish 1024 uses 128-byte blocks.
 -   A 16-byte cryptographically secure tweak parameter is generated.
 -   A 128-byte key is derived using Argon2, passing in the database password and the secret pepper bytes concatenated as the password, and the rotating salt and tweak concatenated together as the salt.
--   A padding length is calculated using `127 - size_of_chunk`, and if the chunk is less than 127 bytes, it is a positive number, else - zero, call it `padding_size`.
--   If the padding size is more than zero, we generate `padding_size` cryptographically secure bytes and append those to the chunk.
--   The `padding_size` is appended as a `uint8_t`, this is unconditional.
 -   Threefish cipher is applied on the chunk, passing in the key and tweak.
 -   The tweak and the block cypher-text itself is concatenated and appended to the final output cypher-text.
--   The process is repeated until there's no more chunks left.
+-   The process is repeated until there is no more chunks left.
 -   At the end, the whole cypher-text is hashed using SHA3-512, and the digest is prepended to the whole cypher-text, which is finally returned.
 
 As opposed to just using Threefish, this has several advantages:
@@ -662,7 +660,7 @@ Threefish 1024 in our use case is theoretically vulnerable to the following vuln
 This encryption is not used for anything sensitive, it is mainly used for obfuscation. It is a fast stream cipher used for low-security purposes
 as it is considered insecure and broken.
 
-Here's how pDBv1 makes use of RC4:
+Here is how pDBv1 makes use of RC4:
 
     # salt = get_key(CRYPTO_SALT);
 
@@ -704,7 +702,7 @@ In other words:
 As opposed to just using RC4, this has several advantages:
 
 -   Addition of salt enhances the security of the algorithm.
--   Padding of data helps to ensure that the length of data isn't clearly exposed.
+-   Padding of data helps to ensure that the length of data is not clearly exposed.
 -   Variable block size ensures the data fits correctly in a 128-byte (1024-bit) block.
 -   Key derivation using Argon2.
 -   Not cypher-text only.
@@ -717,17 +715,17 @@ RC4 in our use case is theoretically vulnerable to the following vulnerabilities
 -   Weak Keys: RC4 has certain keys that can lead to weak encryption.
     -   We use a 128-byte key, which should theoretically avoid this.
 -   Fluhrer, Mantin, and Shamir (FMS) Attack: This is a specific related-key attack that can successfully recover the key in RC4.
-    -   Argon2 is a one-way function, and the RC4 key is single use, so shouldn't be a problem.
+    -   Argon2 is a one-way function, and the RC4 key is single use, so should not be a problem.
 -   RC4 Nominal: Researchers have discovered certain biases in the RC4 keystream byte distribution which can potentially lead to successful attacks.
     -   Still possible, reduced by the 512+ bit salt.
 
 This cryptography is not used with any other cryptographic algorithm. It is a fast and simple algorithm used for having a single layer of obscurity,
-for example remarks or notes which we don't want to store in plain text, but if they're uncovered it doesn't matter.
+for example remarks or notes which we do not want to store in plain text, but if they are uncovered it does not matter.
 
 ### Quantum computing
 
 Many modern ciphers are theoretically vulnerable to quantum computers, although at this current time
-post-quantum encryption algorithms are not widely used, aren't standard, and/or aren't suitable to use.
+post-quantum encryption algorithms are not widely used, are not standard, and/or are not suitable to use.
 This is exactly why we stick to optimizing the longevity of the current systems by using multiple layers
 of encryption, widely tested and used encryption algorithms, and key rotation.
 
@@ -755,9 +753,9 @@ This would be parsed like this:
 | ----------------------------------- | ---------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Key: Value`                        | `key`            | `Value`             | A normal key-value pair. Key is `key` because `Key` is up to the `:` and the key is always case-insensitive. The first white-space is ignored, and the rest of the line up to the `\n` is the value. |
 | `Key one: Value one`                | `key one`        | `Value one`         | Key is read up to the `:` (semicolon), the first white-space is ignored, and the rest of the line up to the `\n` (newline) is the value.                                                             |
-| `This is a key!: This is a: value!` | `this is a key!` | `This is a: value!` | The key is read as normal, the first white-space is ignored, and the value is read up to the newline, as the key was already read, it doesn't matter that it has a semicolon.                        |
+| `This is a key!: This is a: value!` | `this is a key!` | `This is a: value!` | The key is read as normal, the first white-space is ignored, and the value is read up to the newline, as the key was already read, it does not matter that it has a semicolon.                       |
 | `key:value :)`                      | `key`            | `Value :)`          | A key-value pair as normal, and key is same as the first line because of the case-insensitivity. No first white-space to ignore, so the first character is not ignored.                              |
-| `    KEY:  Value`                   | `key`            | ` Value`            | All white-space before the first non-white-space character is ignore. The first white-space before the value is ignored, but the second one isn't.                                                   |
+| `    KEY:  Value`                   | `key`            | ` Value`            | All white-space before the first non-white-space character is ignore. The first white-space before the value is ignored, but the second one is not.                                                  |
 | `Key:`                              | `key`            | -                   | Invalid line: Empty value.                                                                                                                                                                           |
 | `:`                                 | -                | -                   | Invalid line: Empty key.                                                                                                                                                                             |
 | -                                   | -                | -                   | Empty line ignored.                                                                                                                                                                                  |
@@ -884,7 +882,7 @@ Be careful when using any of the reserved identifiers, prefer to use identifiers
     -   If `t` is `d`: Derived password store.
         -   `u`: Username.
         -   `p`: Private value.
-        -   `l`: Length of the password as a little-endian `uint64_t`.
+        -   `l`: Length of the password as a little-endian `uint32_t`.
         -   `s`: Random `salt_size`-byte salt.
     -   If `t` is `t`: TOTP password store.
         -   `s`: Shared secret key.
@@ -896,12 +894,12 @@ Be careful when using any of the reserved identifiers, prefer to use identifiers
 ### Complex entries
 
 Complex entries are Simple entries, which go through a specific chunking process.
-There's multiple parts to this process:
+There is multiple parts to this process:
 
 1. Generating a Chunk ID: Generating a `chunk_identifier_size`-byte Chunk identifier to identify the chunks and group them.
 2. Padding the input data: Pad the input data so its length is divisible by `chunk_size` and can be chunked.
 3. Chunking the input data: Chunking the now-padded input data.
-4. Assigning a Chunk number to every chunk: Numbering the chunks, so they don't have to be stored in order.
+4. Assigning a Chunk number to every chunk: Numbering the chunks, so they do not have to be stored in order.
 5. Assigning a Chunk ID to every chunk: Assigning a Chunk ID to every chunk to group them.
 6. Inserting the Chunks into the database: Insert the chunks into the database.
 
@@ -960,7 +958,7 @@ There are optimizations and transformations you can apply to the algorithm, such
 -   Keeping track of generated chunks
 -   Checking the `sum(chunk_id) != 0` instead of comparing bytes
 -   Use hashing functions (or a data structure such as a Hash table)
--   Caching the IDs so you wouldn't need to regenerate them each time
+-   Caching the IDs so you would not need to regenerate them each time
 -   Binary search if the IDs are sorted
 -   Batch generation of the IDs
 -   Probably more... Or less.
@@ -969,9 +967,9 @@ But The idea stays the same - brute force.
 
 Or you can go the less entropic way of doing things and just using `total_chunks + 1` represented
 through bytes as the ID of the chunk, although this is **not recommended** due to integer limits and
-just for the fact that it doesn't have enough entropy.
+just for the fact that it does not have enough entropy.
 
-A Chunk ID can be pretty much any value as long as it's `chunk_identifier_size` bytes.
+A Chunk ID can be pretty much any value as long as it is `chunk_identifier_size` bytes.
 
 #### Padding the input data
 
@@ -1002,7 +1000,7 @@ chunks. This is how a hypothetical algorithm would look:
         return split(data, chunk_size);
     }
 
-The algorithm will depend a lot on the implementation and pseudocode isn't enough to express it.
+The algorithm will depend a lot on the implementation and pseudocode is not enough to express it.
 The generic pipeline of it would be:
 
 -   As the data is padded, we can expect the data to chunk correctly.
@@ -1015,7 +1013,7 @@ For entropy uses we might want to shuffle the chunks, this is why their order is
 The Chunk number is a 32-bit integer, meaning there cannot be more than 4294967295 chunks in
 a Complex entry.
 
-Here's how a Chunk number gets assigned:
+Here is how a Chunk number gets assigned:
 
     bytes[] assign_chunk_numbers(bytes[] chunks) {
         for chunk_idx in counter(chunks.size()) {
