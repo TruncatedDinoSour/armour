@@ -18,10 +18,11 @@ pDBv1 should now be the preferred format for modern pDB databases, as it improve
 
 -   Encryption and hashing enhancements
     -   pDBv1 uses more robust encryption methods and a more secure layered cryptography approach.
-    -   Force SHA3-512, SHA3-256, and Argon2 for key derivation and hashing.
+    -   Force SHA3-512, SHA3-256, BLAKE2b and Argon2 for key derivation and hashing.
     -   Support for more secure encryption schemes: RSA 4096, ChaCha20-Poly1305, AES in GCM mode, Threefish 1024.
     -   Better entropy and integrity of the whole database and its entries.
     -   RC4 is no longer used in sensitive encryption layers, it is used for obfuscation uses as a single-pass cipher.
+    -   Added support for "no storage" password stores, to not need to store passwords.
 -   Better key management
     -   pDBv1 introduces support for pKfv0 (pDB Keyfile version 0), which has support for rotating keys and cryptographically secure salts.
     -   Introduction of interdependence between the Keyfile and the database adds an extra layer of authentication.
@@ -29,7 +30,7 @@ pDBv1 should now be the preferred format for modern pDB databases, as it improve
     -   Made the format more flexible and dynamic.
     -   Simplify parts of the structure, allowing the format to be more flexible and dynamic.
     -   Added support for SNAPI - Standard Network Application Programming interface - to use pDB over the network.
-    -   Added more standard password entry types, such as TOTP and derived (non-stored) password stores.
+    -   Added more officially supported password entry types, such as TOTP and derived (non-stored) password stores.
 -   Concurrency and locking
     -   Added support for locking and concurrency.
     -   Made it easier to make use of multiple threads.
@@ -213,6 +214,7 @@ until there is at least 3 available keys of the queried type. In other words:
     enum KeyType {
         RSA_KEYPAIR,
         CRYPTO_SALT,
+        ACCOUNT_SECRET,
     }
 
     # Assume we have access to the keyfile somehow
@@ -263,42 +265,6 @@ To reiterate, this is not an ideal algorithm, and you should have a good data st
     }
 
 Though, this is left up to the SDK and/or the Client.
-
-## Hashing
-
-Since pDBv0, all hashing algorithms have been removed and substituted with Argon2.
-This is how the new hashing process in a modern pDB database would look:
-
-    bytes hash(bytes data) {
-        bytes salt = random(salt_size);
-
-        bytes rotating_salt = get_key(KeyType.CRYPTO_SALT);
-        bytes rotating_salt_index = get_key_id(rotating_salt);  # In a real-world scenario the key would come with its ID, depending on the data structure.
-
-        bytes hash = argon2(
-            password=(db_pepper + data),
-            salt=(rotating_salt + salt),
-            length=64,
-            ... (parameters determined by the database),
-        )
-
-        return salt + as_uint8_le(rotating_salt_index) + hash;
-    }
-
-In other words:
-
--   Generate a `salt_size`-byte cryptographically secure salt.
--   Get a rotating salt from the Keyfile, as well its ID.
--   Use Argon2 to generate a 64-byte (512-bit) hash, passing in the pepper bytes and the data together as the password, and the concatenation of the rotating salt and the generated salt as the salt.
--   Return the salt, rotating salt id as `uint8_t`, and hash digest concatenated together. Resulting in a `salt_size + 1 + 64`-byte final hash digest.
-
-Structure-wise a hash would look like this:
-
-| C type               | Name         | Description                               |
-| -------------------- | ------------ | ----------------------------------------- |
-| `uint8_t[salt_size]` | `salt`       | The salt of the hash.                     |
-| `uint8_t`            | `salt_index` | The rotating salt index used in the hash. |
-| `uint8_t[64]`        | `hash`       | The hash of the data.                     |
 
 ## Cryptography
 
@@ -404,7 +370,7 @@ In other words:
 -   Pass the chunk to RSA 4096, with the OAEP padding.
 -   To the cypher-text append the label, RSA cypher-text length as 2-byte little-endian `uint16_t`, and the chunk cypher-text.
 -   Repeat the process until there is no more chunks left.
--   Using the SHA3-512 hashing algorithm, hash the final cypher-text, and prepend it to the final cypher-text.
+-   Using the SHA3-512 hashing function, hash the final cypher-text, and prepend the 64-byte digest to the final cypher-text.
 
 This implementation will improve the security, authenticity, and integrity of the data. It also has multiple advantages to just RSA 4096:
 
@@ -499,7 +465,7 @@ In other words:
 -   Data is reassigned to a concatenation of the generated `aes_salt`, the AES256 GCM tag, and the output cypher-text.
 -   Process is repeated. After the loop is finished, `data` should be the final cypher-text.
 -   Then the initial salt is prepended to the final cypher-text.
--   At the end, the final cypher-text along with the initial salt are passed to SHA3-512, the digest is prepended to the final output, and is it returned.
+-   At the end, the final cypher-text along with the initial salt are passed to SHA3-512, the 64-byte digest is prepended to the final output, and is it returned.
 
 This use of AES256 in GCM mode has multiple advantages over a single pass, for example:
 
@@ -510,7 +476,7 @@ This use of AES256 in GCM mode has multiple advantages over a single pass, for e
 AES256 in GCM mode in our use case is theoretically vulnerable to the following vulnerabilities:
 
 -   Side-Channel attacks: If not implanted correctly, AES in GCM mode can leak information through side channel, particularly if keys are reused.
-    -   Trying to reduce it by using a padding and differing keys.
+    -   Trying to reduce it by using padding and differing keys.
 
 ### ChaCha20-Poly1305
 
@@ -530,7 +496,7 @@ We use multiple passes ChaCha20-Poly1305 to encrypt data like this:
         for n in repeat(db_ChaCha20_Poly1305_crypto_passes) {
             # Pad the data
 
-            number padding_size = 31 - (len(data) % 32);
+            number padding_size = 63 - (len(data) % 64);
 
             if (padding_size > 0) {
                 data = data + random(padding_size);
@@ -543,20 +509,15 @@ We use multiple passes ChaCha20-Poly1305 to encrypt data like this:
             bytes chacha_salt = random(salt_size);
             bytes authenticated_data = random(authentication_size);
 
-            bytes key = sha3_256(stringify(n) + database_password + db_pepper + salt + initial_salt);
+            bytes key = blake2b(stringify(n) + database_password + db_pepper + salt + initial_salt, size=32);
 
-            bytes nonce = argon2(
-                password=(key + database_password + db_pepper),
-                salt=(initial_salt + salt),
-                length=12,
-                ... (determined by the database parameters),
-            );
+            bytes nonce = random(12);
 
             ChaCha20Poly1305 chacha = ChaCha20Poly1305(key);
 
             data = chacha.encrypt(nonce, data, authenticated_data);
 
-            data = chacha_salt + authenticated_data + data;
+            data = nonce + chacha_salt + authenticated_data + data;
         }
 
         data = initial_salt + data;
@@ -568,14 +529,14 @@ In other words:
 
 -   A 32-byte initial salt is generated, called `initial_salt`.
 -   A loop which iterates `db_ChaCha20_Poly1305_crypto_passes` times is started, storing the current iteration number in `n`.
--   Data is padded to 32 byte block size. Padding size is appended to the data as a `uint8_t`.
+-   Data is padded to block size of 64 bytes (512 bits). Padding size is appended to the data as a `uint8_t`.
 -   A `salt_size`-byte salt is generated called `chacha_salt`.
 -   A `authentication_size`-byte authentication data blob is generated called `authenticated_data`.
--   A 32-byte key a derived using SHA3-256, passing in the current iteration number, database password, database pepper bytes, salt, and the initially generated salt to the function.
--   A 12-byte nonce is derived using Argon2 based off the derived key, database password, and database pepper passed as the password, and the salt passed in the initial salt and the rotating salt concatenated.
+-   A 32-byte key a derived using BLAKE2b, passing in the current iteration number, database password, database pepper bytes, salt, and the initially generated salt to the function.
+-   A cryptographically secure 12-byte `nonce` is generated.
 -   The key is passed to ChaCha20-Poly1305.
 -   Using ChaCha20-Poly1305, data is encrypted, passing in the authenticated data and nonce.
--   Then, the `chacha_salt`, `authenticated_data`, and the cypher-text are concatenated and data is reassigned.
+-   Then, the `nonce`, `chacha_salt`, `authenticated_data`, and the cypher-text are concatenated and data is reassigned.
 -   Process is repeated. After the loop is finished, `data` should be the final cypher-text.
 -   Then the initial salt is prepended to the final cypher-text.
 -   At the end, the final cypher-text along with the initial salt are passed to SHA3-512, the digest is prepended to the final output, and is it returned.
@@ -589,8 +550,8 @@ The advantages:
 
 ChaCha20-Poly1305 in our use case is theoretically vulnerable to the following vulnerabilities:
 
--   Nonce handling: ChaCha20-Poly1305 relies a lot on proper nonce handling, and can fall short in security if a nonce is exposed or reused.
-    -   The nonce is not stored.
+-   Nonce handling: ChaCha20-Poly1305 relies a lot on proper nonce handling, and can fall short in security if a nonce is reused.
+    -   A nonce can be made public, but it has to be unique.
 
 ### Threefish 1024
 
@@ -617,11 +578,14 @@ In pDBv1 we use a single pass of Threefish:
         for chunk in split(data, 128) {
             bytes tweak = random(16);
 
-            bytes key = argon2(
-                password=(database_password + db_pepper),
+            bytes key = blake2b(
+                (database_password + db_pepper),
                 salt=(salt + tweak),
-                length=128,
-                ... (determined by the database parameters),
+                size=64,
+            ) + blake2b(
+                (db_pepper + database_password),
+                salt=(tweak + salt),
+                size=64,
             );
 
             bytes tf_cypher_text = threefish(data=chunk, key=key, tweak=tweak);
@@ -638,7 +602,9 @@ In other words:
 -   The input data is padded to a block size of 128 bytes.
 -   The data is split into 128-byte chunks or less. Threefish 1024 uses 128-byte blocks.
 -   A 16-byte cryptographically secure tweak parameter is generated.
--   A 128-byte key is derived using Argon2, passing in the database password and the secret pepper bytes concatenated as the password, and the rotating salt and tweak concatenated together as the salt.
+-   A 128-byte key is derived using BLAKE2b 2 times:
+    -   First time: Data is database password and database pepper bytes concatenated, salt is salt and tweak concatenated.
+    -   Second time: Data is pepper bytes and database pepper concatenated together, and salt is tweak bytes and salt concatenated together.
 -   Threefish cipher is applied on the chunk, passing in the key and tweak.
 -   The tweak and the block cypher-text itself is concatenated and appended to the final output cypher-text.
 -   The process is repeated until there is no more chunks left.
@@ -653,7 +619,7 @@ As opposed to just using Threefish, this has several advantages:
 
 Threefish 1024 in our use case is theoretically vulnerable to the following vulnerabilities:
 
--   New algorithm: It is a fairly new algorithm, may uncover some vulnerabilities in the future?
+-   New algorithm: It is a fairly new algorithm, may uncover some vulnerabilities in the future? Possible vulnerabilities for Threefish-256 and Threefish-512 are well-known since 2009.
 
 ### RC4
 
@@ -794,36 +760,36 @@ This subsection will give a sample metadata blob in the following format:
 
 When using the metadata key-value pairs described in this section, you should ignore the `(note)` and just use the `Key:Value`.
 
+    Note: Any note here. (A plain-text note)
     Client: Pwdmgr (the client that generated the database.)
     Connect: <connection address> (The connection address of the pDB database, usually handled by the 0x05 locking state. See connection address format below.)
     Creation: 2024-03-11 23:21:21 +03:00 (The creation date of the database, YYYY-MM-DD hh:mm:ss +/-HH:MM)
     Email: Ari Archer <ari@ari.lt> [4FAD63E936B305906A6C4894A50D5B4B599AF8A2] (The email(s) of the owner(s) of this database, along with the email owners,
     and gpg keys)
     Matrix: @ari:ari.lt (the Matrix ID of the owner of this database)
-    Note: Any note here. (A plain-text note)
     Phone: +442012345678 (Phone number(s) in the international format of the owner(s) of the database)
     Post: PO Box 1235, Cupertino, CA 95015, USA (Postal address of the owner(s) of the database)
     XMPP: ari@ari.lt (The XMPP/Jabber ID of the owner of this database)
 
 #### Connection address
 
-Here are the supported connection address formats for pDB:
+A pDBv1 connection string has the following format (REGEX):
 
--   `pdb://host.name:port/database` - No authentication connection to a database
-    -   Required authentication layers: None
-    -   Note: Only use this when you know you can trust anyone to access the database. Usually in local scenarios.
--   `mpdb://user@host.name:port/database` - Multi-user server pDB connection to a database
-    -   If value of `Connect` is only `mpdb://host.name:port/database` it means 'Connect with your own user and secret(s) (password)'
-    -   Required authentication layers: User secret(s) (password)
--   `spdb://host.name:port/database` - Secure authentication connection to a database
-    -   This connection _will_ require you to pass the database credentials over the pDB connection to use it,
-        usually for servers that may not specifically handle the database on their own, but rather giving a
-        server to store databases on and use the database on the server.
-    -   Required authentication layers: Database password, database salt (slt)
--   `smpdb://user@host.name:port/database` - Secure multi-user authentication connection to a database
-    -   If value of `Connect` is only `smpdb://host.name:port/database` it means 'Connect with your own user and secret(s) (password)'
-    -   Same as `spdb`, except with added user-based authentication as in `mpdb`
-    -   Required authentication layers: User secret(s) (password), database password, database salt (slt)
+```regex
+^pdb:\/\/([a-zA-Z0-9-_.~]+)@(\[((?:[a-fA-F0-9:]+))\]|(?:[0-9]{1,3}(?:\.[0-9]{1,3}){3})|([a-zA-Z0-9-_.~]*\.[a-zA-Z]{2,}))(?::([0-9]+))(\/[a-zA-Z0-9-_.~]+)(?:\?([a-zA-Z0-9-_.~]+=[a-zA-Z0-9-_.~]+(?:&[a-zA-Z0-9-_.~]+=[a-zA-Z0-9-_.~]+)*))?$
+```
+
+In other words:
+
+-   Protocol: `pdb://`.
+-   Username: URL-safe characters.
+-   Separator: `@` (at).
+-   Host: IPv4 address (127.0.0.1), IPv6 address ([::1]), or (sub)domain (sub.example.tld).
+-   Port: A network port number from 0 to 65535.
+-   Database: A URL-safe database name.
+-   Arguments: Arguments passed to the pDB server, latest one gets priority (`?a=1&a=b` would mean `a=b`).
+
+The `v` argument is required, specifying the SNAPI version.
 
 Read more about connections in SNAPI documentation.
 
@@ -855,12 +821,12 @@ This structure provides good data integrity, and 256 fields to work with:
 
 All multi-byte types (anything above `uint8_t` (so `uint16_t`, `uint32_t`, `uint64_t`, ...)) are little-endian values.
 
-| C type                     | Name                  | Description                                                |
-| -------------------------- | --------------------- | ---------------------------------------------------------- |
-| `uint8_t[32]`              | `sha3_256_field_hash` | The SHA3-256 hash of the whole field.                      |
-| `uint8_t`                  | `field_identifier`    | The identifier of the field, which defines the type/value. |
-| `uint32_t`                 | `field_data_size`     | The size of the data stored in the entry.                  |
-| `uint8_t[field_data_size]` | `field_data`          | The data stored in the entry.                              |
+| C type                     | Name                  | Description                                                       |
+| -------------------------- | --------------------- | ----------------------------------------------------------------- |
+| `uint8_t[32]`              | `sha3_256_field_hash` | The SHA3-256 hash of the whole field.                             |
+| `uint8_t`                  | `field_identifier`    | The unique identifier of the field, which defines the type/value. |
+| `uint32_t`                 | `field_data_size`     | The size of the data stored in the entry.                         |
+| `uint8_t[field_data_size]` | `field_data`          | The data stored in the entry.                                     |
 
 Every field is raw, only the data itself may be encrypted at the field level.
 
@@ -880,16 +846,67 @@ Be careful when using any of the reserved identifiers, prefer to use identifiers
         -   `u`: Username.
         -   `p`: Password.
     -   If `t` is `d`: Derived password store.
-        -   `u`: Username.
-        -   `p`: Private value.
-        -   `l`: Length of the password as a little-endian `uint32_t`.
+        -   `u`: Username. (**not stored**)
+        -   `p`: Private value. (**not stored**)
         -   `s`: Random `salt_size`-byte salt.
+        -   `k`: The Salt ID from the Keyfile used to salt the password as a little-endian `uint64_t`.
+        -   `t`: Time of creation as a little-endian `uint64_t` in UNIX time.
+        -   `l`: Length of the password as a little-endian `uint32_t`, at least `8`.
+        -   `h`: A 64-byte BLAKE2b hash all values, including `u` and `p`. `k` is resolved.
+            -   For data integrity and making sure `u` and `p` are correct.
+            -   `h` = `blake2b(data=(u + p + s + resolve_salt(k) + t + l), size=64)`
     -   If `t` is `t`: TOTP password store.
         -   `s`: Shared secret key.
         -   `t`: Time step as a little-endian `uint16_t` in seconds. (commonly 30 or 60 seconds, defaults to 30)
         -   `r`: Time reference as a little-endian `uint64_t` in UNIX time. (the initial time from which all OTPs are calculated, UNIX epoch)
         -   `a`: TOTP algorithm. (either SHA1, SHA256, or SHA512. SHA1 by default)
         -   `d`: Digit count, as a `uint8_t`. (6-10 digits)
+
+###### "No storage" password store
+
+A no-storage password store is a password derived using Argon2. This is how:
+
+    ascii derive_password(... entry fields ...) {
+        # `k` will be the salt from the Keyfile, not the key ID.
+
+        bytes key = argon2(
+            password=u + h + p,
+            salt=s + t + k,
+            length=l,
+            ... (determined by database configuration),
+        );
+
+        for idx in key.iter() {
+            key[idx] = 32 + (key[idx] % 95);
+        }
+
+        if (key[0] == ' ')
+            key[0] = 33 + ((u[-1] + 1) % 94);
+
+        if (key[-1] == ' ')
+            key[-1] = 33 + ((p[0] + 1) % 94);
+
+        return key.encode();
+    }
+
+It is simply an Argon2 digest mapped to an ASCII table (range 32 to 126) and making sure it
+cannot get trimmed by setting first and last spaces to unique characters:
+
+-   Using Argon2, derive an `l`-byte key, passing in the salt as a concatenation of `s`, `t`, and `k`, and password as `u`, `h` and `p` (entry fields).
+-   Looping over every byte in the key, map it to the ASCII table using formula `32 + (byte_value % 95)`.
+-   If the first byte is a space, we set the last byte to `33 + ((last_value_of_u + 1) % 94)`.
+-   If the last byte is a space, we set the last byte to `33 + ((first_value_of_p + 1) % 94)`.
+-   Return the encoded-as-ASCII string as the final password.
+
+This method has multiple strengths compared to a traditional password store:
+
+-   No password storage means there is no chance of compromise, if the password is not stored.
+-   Argon2 is a memory and GPU -hard hashing algorithm, which is perfect for key (password) derivation.
+-   Mapping Argon2 output to ASCII helps to ensure compatibility with most, if not all, systems.
+-   Incorporating multiple secure salts helps to ensure security and uniqueness of the password.
+-   First and last character handling helps to ensure that a password isn't trimmed when submitted, but still avoiding storing values.
+
+**Note**: Do not forget your `u` and `p` values - they are unrecoverable.
 
 ### Complex entries
 

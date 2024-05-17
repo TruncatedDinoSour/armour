@@ -146,6 +146,14 @@ This is the format of a cryptographic salt:
 | ----------- | ------- | ----------------------------------------------- |
 | `uint8_t[]` | `value` | A cryptographically secure salt (random bytes). |
 
+#### 0x02 - account secret
+
+This is the format of a cryptographic account secret for SNAPI.
+
+| C type      | Name    | Description                             |
+| ----------- | ------- | --------------------------------------- |
+| `uint8_t[]` | `value` | A secure account secret (random bytes). |
+
 ## Cryptography
 
 Keyfile version 0 uses ChaCha20-Poly1305 with the Argon2 key derivation function. In pseudocode, the cryptography of a single key would look like this:
