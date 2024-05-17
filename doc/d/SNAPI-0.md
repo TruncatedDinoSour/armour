@@ -22,7 +22,7 @@ of the protocol. A SNAPI handshake would look like this:
 5. Server sends its server ID. Client saves it.
 6. Client sends its 158-byte DER-encoded ECDH-SECP521R1 public key to the Server.
 7. Server sends its 158-byte DER-encoded ECDH-SECP521R1 public key to the Client.
-8. We concatenate the client is and server is public ECDH keys together, and pass the blob to SHA3-256. Output digest will be our 32-byte salt.
+8. We concatenate the Client's and Server's public ECDH keys together, and pass the blob to SHA3-256. Output digest will be our 32-byte salt.
 9. We concatenate the Client ID, string `" <=> "` (without quotes, but with spaces), and the server ID, giving us the info data.
 10. Using ECDH, finish the key exchange, giving us key material.
 11. Using HKDF with SHA3-512, we generate a 64-byte key, passing in the salt, info, and previously mentioned key material.
@@ -72,7 +72,7 @@ def main() -> int:
     conn, addr = server.accept()
     print(f"Incoming connection from {addr}")
 
-    # Generate server is ECDH key.
+    # Generate server's ECDH key.
 
     private_key: EllipticCurvePrivateKey = ec.generate_private_key(ec.SECP521R1())
     public_key: EllipticCurvePublicKey = private_key.public_key()
@@ -86,7 +86,7 @@ def main() -> int:
     client_id: bytes = conn.recv(64)
     print("Public data:", client_id)
 
-    # Send the server is identifier.
+    # Send the server's identifier.
 
     conn.sendall(b"Sample server 1.0.0")
 
@@ -516,7 +516,7 @@ Comments in SOQL are in `(...)` (parentheses)
 For example an SQL query like:
 
 ```sql
-SELECT * FROM <...> WHERE group_id='hello' AND e_n=RC4('Meow'); -- Ca not do some stuff with SQL like field decryption.
+SELECT * FROM <...> WHERE group_id='hello' AND e_n=RC4('Meow'); -- Cannot do some stuff with SQL like field decryption.
 ```
 
 In SOQL would look like this:
