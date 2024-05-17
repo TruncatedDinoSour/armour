@@ -22,7 +22,7 @@ of the protocol. A SNAPI handshake would look like this:
 5. Server sends its server ID. Client saves it.
 6. Client sends its 158-byte DER-encoded ECDH-SECP521R1 public key to the Server.
 7. Server sends its 158-byte DER-encoded ECDH-SECP521R1 public key to the Client.
-8. We concatenate the client's and server's public ECDH keys together, and pass the blob to SHA3-256. Output digest will be our 32-byte salt.
+8. We concatenate the client is and server is public ECDH keys together, and pass the blob to SHA3-256. Output digest will be our 32-byte salt.
 9. We concatenate the Client ID, string `" <=> "` (without quotes, but with spaces), and the server ID, giving us the info data.
 10. Using ECDH, finish the key exchange, giving us key material.
 11. Using HKDF with SHA3-512, we generate a 64-byte key, passing in the salt, info, and previously mentioned key material.
@@ -72,7 +72,7 @@ def main() -> int:
     conn, addr = server.accept()
     print(f"Incoming connection from {addr}")
 
-    # Generate server's ECDH key.
+    # Generate server is ECDH key.
 
     private_key: EllipticCurvePrivateKey = ec.generate_private_key(ec.SECP521R1())
     public_key: EllipticCurvePublicKey = private_key.public_key()
@@ -86,7 +86,7 @@ def main() -> int:
     client_id: bytes = conn.recv(64)
     print("Public data:", client_id)
 
-    # Send the server's identifier.
+    # Send the server is identifier.
 
     conn.sendall(b"Sample server 1.0.0")
 
@@ -348,7 +348,7 @@ This section describes every command in more detail.
         -   `p`?: Optional database password, if the server requires it.
     -   Outputs
         -   `s`: The database Session ID, representing authorized access to the database and the database name.
-            -   There's no specific format for this.
+            -   There is no specific format for this.
 -   0x03: A_CLOSE
     -   Inputs
         -   `c`: The Connection ID returned by INIT.
@@ -516,22 +516,22 @@ Comments in SOQL are in `(...)` (parentheses)
 For example an SQL query like:
 
 ```sql
-SELECT * FROM <...> WHERE group_id='hello' AND e_n=RC4('Meow'); -- Can't do some stuff with SQL like field decryption.
+SELECT * FROM <...> WHERE group_id='hello' AND e_n=RC4('Meow'); -- Ca not do some stuff with SQL like field decryption.
 ```
 
 In SOQL would look like this:
 
 ```sql
-"hello" EQUALS CONDITION (stops parsing if the Group ID isn't "hello")
+"hello" EQUALS CONDITION (stops parsing if the Group ID is not "hello")
 "n" "e" EFIELD "Meow" EQUALS (now we check if the field `n` of encrypted entry `e` matches "Meow")
 ```
 
 Basically:
 
 -   Compare the Group ID with `"hello"`.
--   If it doesn't equal, stop querying.
+-   If it does not equal, stop querying.
 -   Get the field `n` of entry `e` and compare it to "Meow".
--   Interpreter will check the top-most element on the stack and decide if it's okay.
+-   Interpreter will check the top-most element on the stack and decide if it is okay.
 
 This would parse `e` as an entry and return the `n` field from it.
 
@@ -540,12 +540,12 @@ The Query object would be similar, just represented in op codes:
     hello 0x05 0x00 0x12 0x11 0x04
     n 0x01 0x00 e 0x01 0x00 0x04 Meow 0x04 0x00 0x12
 
-True packet:
+True Query object:
 
     0x68 0x65 0x6c 0x6c 0x6f 0x05 0x00 0x12 0x11 0x04
     0x6e 0x01 0x00 0x65 0x01 0x00 0x04 0x4d 0x65 0x6f 0x77 0x04 0x00 0x12
 
-It's just opcodes and data as hex (`b'hello\x05\x00\x12\x11\x04n\x01\x00e\x01\x00\x04Meow\x04\x00\x12'`).
+It is just opcodes and data as hex (`b'hello\x05\x00\x12\x11\x04n\x01\x00e\x01\x00\x04Meow\x04\x00\x12'`).
 
 A query to select all elements would be as simple as
 
@@ -565,8 +565,8 @@ The status codes are separated into 4 64-code ranges:
 
 -   0x00 to 0x3f - Information: The request was received, continuing process.
 -   0x40 to 0x7f - Success: The request was successfully received, understood, and accepted.
--   0x80 to 0xbf - Client error: The request contains bad syntax or cannot be fulfilled. See the packet's plain-text for more details.
--   0xc0 to 0xff - Server error: The server failed to fulfil an apparently valid request. See the packet's plain-text for more details.
+-   0x80 to 0xbf - Client error: The request contains bad syntax or cannot be fulfilled. See the packet is plain-text for more details.
+-   0xc0 to 0xff - Server error: The server failed to fulfil an apparently valid request. See the packet is plain-text for more details.
 
 | Status | Name            | Fatal | Content                                                    | Description                                                                                          |
 | ------ | --------------- | ----- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -591,7 +591,7 @@ Fatal errors are errors that instantly close the connection.
 
 ## Performance and security
 
-The protocol works on pDB, so it's not fast as a whole entity. Although, as a protocol, it uses ChaCha20-Poly1305
+The protocol works on pDB, so it is not fast as a whole entity. Although, as a protocol, it uses ChaCha20-Poly1305
 encryption algorithm and BLAKE2-family hashing algorithms, meaning it is pretty fast and efficient.
 
 Security-wise, it is a pretty secure protocol, although may be a bit tricky to implement due to requirements of
