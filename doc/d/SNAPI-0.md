@@ -293,14 +293,12 @@ The command codes are separated into 4 64-code ranges:
 -   0x00: Initialization: Initialization call, before it no other command can be called.
 -   0x01 to 0x3f - Account and database (not its data) management: Manage your account, create databases, delete databases, administration tasks.
 -   0x40 to 0x7f - Data management: Query, insert, update, delete data.
--   0x80 to 0xbf - TBD.
--   0xc0 to 0xff - TBD.
+-   0x80 to 0xbf - Reserved.
+-   0xc0 to 0xff - Reserved.
 
 #### Abstract
 
 Note that the server may respond with an error at any point.
-
-<!-- |         |            |                          |          |                      |               |                                       |                 | -->
 
 | Command | Name         | Description                                    | Authenticated  | After           | Inputs, Optional inputs       | Outputs     | Common errors (not only ones)                            | Common statuses           |
 | ------- | ------------ | ---------------------------------------------- | -------------- | --------------- | ----------------------------- | ----------- | -------------------------------------------------------- | ------------------------- |
@@ -472,7 +470,92 @@ This section describes every command in more detail.
 
 ### Query objects
 
-...
+Query objects are interpreted at runtime queries that can filter through:
+
+-   Group IDs.
+-   Plain-text fields.
+-   Encrypted fields.
+
+They are reverse-polish-notation binary blobs, but Clients may choose to use a high-level reverse-polish-notation language called SOQL (SNAPI Objects Query Language)
+to query for objects. SOQL syntax is defined below.
+
+Before every query the stack includes the Group ID, `data group_id`.
+
+The stack can have up to 64 elements, if there will be more - the interpreter will stop the Query.
+
+Query objects have the following binary operations:
+
+| Opcode (`uint8_t`) | Keyword         | Stack                          | Description                                                                                                                                                                                                                |
+| ------------------ | --------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0x00`             | -               | `uint8_t ...`, `uint16_t size` | Top of the stack includes the data size, and `size` elements on the stack are the data. The operation pops `size` elements off the stack starting from the bottom (h e l l o => h (bottom) e l l o) and joins it into one. |
+| `0x01`             | `POP`           | ...                            | Remove the top element of the stack.                                                                                                                                                                                       |
+| `0x02`             | `FIELD`         | `uint8_t a`                    | Push a field onto the stack.                                                                                                                                                                                               |
+| `0x03`             | `SWAP`          | `data a, b`                    | Swap a and b.                                                                                                                                                                                                              |
+| `0x04`             | `EFIELD`        | `data a, b`                    | Parse encrypted field `b` as an entry and push field `a` from it.                                                                                                                                                          |
+| `0x05`             | `RSA4096`       | `data d`                       | Decrypt RSA-4096 encrypted data.                                                                                                                                                                                           |
+| `0x06`             | `AES256`        | `data d`                       | Decrypt AES-256 encrypted data.                                                                                                                                                                                            |
+| `0x07`             | `CHACHA20`      | `data d`                       | Decrypt ChaCha20-Poly1305 encrypted data.                                                                                                                                                                                  |
+| `0x08`             | `THREEFISH1024` | `data d`                       | Decrypt Threefish-1024 encrypted data.                                                                                                                                                                                     |
+| `0x09`             | `RC4`           | `data d`                       | Decrypt RC4 encrypted data.                                                                                                                                                                                                |
+| `0x0a`             | `ZSTD`          | `data d`                       | Decompress data using ZSTD.                                                                                                                                                                                                |
+| `0x0b`             | `STDE`          | `data d`                       | Decrypt data using the standard pDB cryptography pipeline.                                                                                                                                                                 |
+| `0x0c`             | `NOT`           | `data a`                       | Push false if the top element on the stack is truthy, else true.                                                                                                                                                           |
+| `0x0d`             | `AND`           | `data a, b`                    | Push true onto the stack if both a and b are truthy, else false.                                                                                                                                                           |
+| `0x0e`             | `OR`            | `data a, b`                    | Push true onto the stack if either a or b are truthy, else false.                                                                                                                                                          |
+| `0x0f`             | `FALSE`         |                                | False.                                                                                                                                                                                                                     |
+| `0x10`             | `TRUE`          |                                | True.                                                                                                                                                                                                                      |
+| `0x11`             | `CONDITION`     | `data d`                       | Only run the rest of the query if the top of the stack is truthy.                                                                                                                                                          |
+| `0x12`             | `EQUALS`        | `data a, b`                    | Checks if both a and b are equal.                                                                                                                                                                                          |
+| `0x13`             | `SUBSTRING`     | `data a, b`                    | Check if top of stack is a substring of second-top-most element.                                                                                                                                                           |
+| `0x14`             | `STARTSWITH`    | `data a, b`                    | Checks if `a` starts with `b`.                                                                                                                                                                                             |
+| `0x15`             | `ENDSWITH`      | `data a, b`                    | Checks if `a` ends with `b`.                                                                                                                                                                                               |
+| `0x16`             | `TOLOWER`       | `data a`                       | Convert the topmost element to lowercase.                                                                                                                                                                                  |
+
+Comments in SOQL are in `(...)` (parentheses)
+
+For example an SQL query like:
+
+```sql
+SELECT * FROM <...> WHERE group_id='hello' AND e_n=RC4('Meow'); -- Can't do some stuff with SQL like field decryption.
+```
+
+In SOQL would look like this:
+
+```sql
+"hello" EQUALS CONDITION (stops parsing if the Group ID isn't "hello")
+"n" "e" EFIELD "Meow" EQUALS (now we check if the field `n` of encrypted entry `e` matches "Meow")
+```
+
+Basically:
+
+-   Compare the Group ID with `"hello"`.
+-   If it doesn't equal, stop querying.
+-   Get the field `n` of entry `e` and compare it to "Meow".
+-   Interpreter will check the top-most element on the stack and decide if it's okay.
+
+This would parse `e` as an entry and return the `n` field from it.
+
+The Query object would be similar, just represented in op codes:
+
+    hello 0x05 0x00 0x12 0x11 0x04
+    n 0x01 0x00 e 0x01 0x00 0x04 Meow 0x04 0x00 0x12
+
+True packet:
+
+    0x68 0x65 0x6c 0x6c 0x6f 0x05 0x00 0x12 0x11 0x04
+    0x6e 0x01 0x00 0x65 0x01 0x00 0x04 0x4d 0x65 0x6f 0x77 0x04 0x00 0x12
+
+It's just opcodes and data as hex (`b'hello\x05\x00\x12\x11\x04n\x01\x00e\x01\x00\x04Meow\x04\x00\x12'`).
+
+A query to select all elements would be as simple as
+
+```sql
+TRUE
+```
+
+Or, in Opcodes:
+
+    0x10
 
 ### Statuses
 
@@ -493,7 +576,7 @@ The status codes are separated into 4 64-code ranges:
 | -      | -               |       |                                                            | -                                                                                                    |
 | `0x40` | `S_ONLY`        |       | Final data.                                                | Only response: Do not expect any other responses. Similar to `I_EXECUTING` and `I_FINISH` afterwards |
 | -      | -               |       |                                                            | -                                                                                                    |
-| `0x80` | `C_ERROR`       | No.   | Human-readable message.                                    | Bad request: Badly structured packet.                                                                |
+| `0x80` | `C_ERROR`       | No.   | Human-readable message.                                    | Bad request: Badly structured packet or query.                                                       |
 | `0x81` | `C_CRYPTO`      | Yes.  | Human-readable message.                                    | Bad encryption: Client badly encrypted the packet.                                                   |
 | `0x82` | `C_ACCESS`      | Yes.  | Human-readable message.                                    | Access denied: User is not allowed to use this resource.                                             |
 | `0x83` | `C_AUTH`        | No.   | Human-readable message.                                    | Unauthorized: Authentication error.                                                                  |
@@ -505,6 +588,14 @@ The status codes are separated into 4 64-code ranges:
 | `0xc1` | `V_VERSION`     | Yes.  | Versions of SNAPI the server supports separated by commas. | Unsupported SNAPI version: The server does not support the SNAPI version.                            |
 
 Fatal errors are errors that instantly close the connection.
+
+## Performance and security
+
+The protocol works on pDB, so it's not fast as a whole entity. Although, as a protocol, it uses ChaCha20-Poly1305
+encryption algorithm and BLAKE2-family hashing algorithms, meaning it is pretty fast and efficient.
+
+Security-wise, it is a pretty secure protocol, although may be a bit tricky to implement due to requirements of
+SOQL and cryptographic measures.
 
 ## HTTPS (WSS) API
 
