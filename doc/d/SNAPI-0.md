@@ -1,7 +1,8 @@
 # Standard Network Application Programming Interface (SNAPI) -- version 0 (alpha)
 
 This document describes the standard network API (SNAPI) for pDBv1+.
-SNAPI is used for interacting with pDB and Keyfile structures over a network interface.
+SNAPI is used for interacting with pDB and Keyfile structures over
+a network interface.
 
 **Last modified**: 2024-05-18
 
@@ -15,7 +16,7 @@ to use, query, and manage the pDB and Keyfile file formats over a TCP connection
 SNAPIv0 uses ECDH (Elliptic Curve Diffie-Hellman) key exchange and ChaCha20-Poly1305 for the encryption part
 of the protocol. A SNAPI handshake would look like this:
 
-1. Client connects
+1. Client connects.
 2. Server generates its ECDH keys on the SECP521R1 curve.
 3. Client generates its ECDH keys on the SECP521R1 curve.
 4. Client sends its client ID. Server saves it.

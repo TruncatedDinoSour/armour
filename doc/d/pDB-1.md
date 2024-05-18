@@ -154,8 +154,8 @@ Do not be confused when you see those parameters in this document, assume they c
 -   `0x00`: Unlocked.
 -   `0x01`: Locking.
 -   `0x02`: Locked.
--   `0x04`: Releasing.
--   `0x05`: Disabled. (Forever locked, lock handled by a client service)
+-   `0x03`: Releasing.
+-   `0x04`: Disabled. (Forever locked, lock handled by a client service)
 -   Anything else: Invalid.
 
 ### Validation
@@ -175,8 +175,6 @@ are in hypothetical order, so you can implement them in any way you want:
 -   `salt_size` is at least `8` (16 bits of entropy).
 -   `authentication_size` is at least `64`.
 -   `keyfile_crypto_passes` is at least `1`.
--   `RSA_crypto_passes` is at least `1`.
--   `Threefish_crypto_passes` is at least `1`.
 -   `chunk_identifier_size` is at least `1`.
 -   `chunk_size` is larger than `chunk_identifier_size`.
 -   SHA3-512 metadata hash is valid.

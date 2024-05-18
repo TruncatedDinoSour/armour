@@ -62,8 +62,8 @@ Do not be confused when you see those parameters in this document, assume they c
 -   `0x00`: Unlocked.
 -   `0x01`: Locking.
 -   `0x02`: Locked.
--   `0x04`: Releasing.
--   `0x05`: Disabled. Consult the database. (Forever locked, lock handled by a client service)
+-   `0x03`: Releasing.
+-   `0x04`: Disabled. Consult the database. (Forever locked, lock handled by a client service)
     -   Normal lock resolution process is executed on the database (including SNAPI resolution).
 -   Anything else: Invalid.
 
