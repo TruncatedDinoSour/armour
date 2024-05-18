@@ -8,7 +8,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#if 0
 static uint8_t *u16_to_le_bytes(const uint16_t value, uint8_t bytes[2]);
+#endif
 static uint8_t *u32_to_le_bytes(const uint32_t value, uint8_t bytes[4]);
 
 /*
@@ -36,11 +38,13 @@ static uint8_t *u32_to_le_bytes(const uint32_t value, uint8_t bytes[4]);
  * Convert integers to little-endian bytes.
  */
 
+#if 0
 static uint8_t *u16_to_le_bytes(const uint16_t value, uint8_t bytes[2]) {
     bytes[0] = (uint8_t)(value);
     bytes[1] = (uint8_t)(value >> 8);
     return bytes;
 }
+#endif
 
 static uint8_t *u32_to_le_bytes(const uint32_t value, uint8_t bytes[4]) {
     bytes[0] = (uint8_t)(value);
@@ -188,7 +192,7 @@ pDBv1Error pDBv1Header_check(const pDBv1Header *header, int fd) {
     old_off = lseek(fd, 0, SEEK_CUR);
     size    = pDBv1Header_size(header);
 
-    lseek(fd, header->lock_offset - size - 64,
+    lseek(fd, header->lock_offset - (int64_t)size - 64,
           SEEK_SET); /* Go back to start of the header, skipping the header
                         hash. */
 

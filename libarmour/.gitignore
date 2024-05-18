@@ -3,4 +3,7 @@
 *.elf
 *.so
 test.pdb
+test.pdb.c
 *.out
+*.log
+obj/
