@@ -1,3 +1,6 @@
+#ifndef _LTEST_H
+#define _LTEST_H
+
 /*
  * Libarmour testing framework.
  */
@@ -36,8 +39,10 @@ void printascii(const char *label, const uint8_t *value, const uint64_t size) {
     printf("%s: ", label);
 
     for (idx = 0; idx < size; ++idx)
-        putchar(value[idx] > 31 && value[idx] < 128 ? value[idx] : '.');
+        putchar(value[idx] > 31 && value[idx] < 127 ? value[idx] : '.');
 
     putchar('\n');
 }
 #endif /* _RUNTEST */
+
+#endif /* _LTEST_H */

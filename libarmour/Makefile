@@ -1,6 +1,6 @@
 ifeq ($(NOQA),)
 	CFLAGS += -std=c89 -ansi -Wall -Wextra -Wpedantic -pedantic -Wshadow -Werror -Wconversion -Wformat -Wuninitialized -Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes -Wredundant-decls -Wfloat-equal -Wcast-qual -Wnested-externs -Wvla -Winline -Wmissing-format-attribute -Wmissing-noreturn -pedantic-errors
-	TESTCFLAGS += -g -Og
+	TESTCFLAGS += -g -Og -std=c99
 endif
 
 CFLAGS += -fPIC -I$(realpath .) -I.
@@ -34,7 +34,7 @@ $(OBJ_DIR)/%.o: ./%.c
 
 pretest:
 	for pt in $(PRETESTS); do \
-		cd $$(dirname "$$pt") && python3 $$(basename "$$pt"); \
+		cd $$(dirname "$$pt") && echo " * Running $$pt" && python3 $$(basename "$$pt"); \
 	done
 
 compile_tests: $(LIB_NAME)
@@ -48,10 +48,10 @@ clean_tests:
 run_tests:
 	for test in $(TESTS); do \
 		cd $$(dirname "$$test"); \
-		LD_LIBRARY_PATH='$(realpath .)' ./"$$(basename "$$test.elf")" >stdout.log 2>stderr.log || echo "Test $$test failed. See log $$PWD/stderr.log" >&2 && echo "$$test passed. Log: $$PWD/stdout.log"; \
+		LD_LIBRARY_PATH='$(realpath .)' ./"$$(basename "$$test.elf")" >stdout.log 2>stderr.log && echo " * $$test passed. Log: $$PWD/stdout.log" || printf '\033[31m\033[1m%s\033[0m\n' " !! Test $$test failed. See logs $$PWD/std{err,out}.log" >&2; \
 	done
 
-test: pretest compile_tests run_tests clean_tests
+test: pretest compile_tests run_tests
 
 .PHONY: clean pretest compile_tests clean_tests run_tests test
 
