@@ -1,19 +1,21 @@
-#include <armour/v1/pdb/pdb.h>
-#include <armour/v1/pdb/error.h>
+#include "armour/perror.h"
+#include "armour/v1/pdb/pdb.h"
+#include "armour/v1/pdb/header.h"
 
-#include <tests/main.h>
+#include "tests/main.h"
 
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
 
+Testcase_op_register_type(uint64_t, eq, ==, "%lu");
+
 int Test(void) {
     int fd;
-    uint64_t idx;
 
     pDBv1Header header;
-    pDBv1Error error;
+    pError error;
 
     fd = pDBv1_open("f:test.pdb");
 
@@ -24,9 +26,9 @@ int Test(void) {
 
     printf("Opened database: %d. Now initializing the header.\n", fd);
 
-    if ((error = pDBv1Header_init(&header, fd)) != pDBv1Error_SUCCESS) {
+    if ((error = pDBv1Header_init(&header, fd)) != pError_SUCCESS) {
         fprintf(stderr, "Failed initializing the header: %s. Errno: %s.\n",
-                pDBv1Error_to_string(error), strerror(errno));
+                pError_to_string(error), strerror(errno));
         pDBv1_close(fd);
         return 1;
     }
@@ -82,9 +84,9 @@ int Test(void) {
 
     puts("Validating database.");
 
-    if ((error = pDBv1Header_check(&header, fd)) != pDBv1Error_SUCCESS) {
+    if ((error = pDBv1Header_check(&header, fd)) != pError_SUCCESS) {
         fprintf(stderr, "Database check failed: %s. Errno: %s\n",
-                pDBv1Error_to_string(error), strerror(errno));
+                pError_to_string(error), strerror(errno));
         pDBv1_close(fd);
         pDBv1Header_destroy(&header);
         return 1;
@@ -96,29 +98,41 @@ int Test(void) {
 
     puts("Checking (asserting) if the values are the expected values.");
 
-    uint64_t expected[][2] = {
-        {header.ZSTD_compression_level, 13},
-        {header.Argon2_type, 2},
-        {header.Argon2_time_cost, 3},
-        {header.Argon2_memory_cost, 65537},
-        {header.psalt_size, 275},
-        {header.salt_size, 19},
-        {header.authentication_size, 94},
-        {header.keyfile_crypto_passes, 4},
-        {header.chunk_identifier_size, 66},
-        {header.chunk_size, 123},
-        {header.metadata_size, 59},
-        {header.lock_offset, 496},
+    if (header.lock_offset < 0) {
+        fputs("`lock_offset` is a negative number.", stderr);
+        pDBv1_close(fd);
+        pDBv1Header_destroy(&header);
+        return 1;
+    }
+
+    Testcase tv[] = {
+        Testcase_op_testcase(uint64_t, eq, "ZSTD compression level", 1,
+                             header.ZSTD_compression_level, 13),
+        Testcase_op_testcase(uint64_t, eq, "Argon2 type", 1, header.Argon2_type,
+                             2),
+        Testcase_op_testcase(uint64_t, eq, "Argon2 time cost", 1,
+                             header.Argon2_time_cost, 3),
+        Testcase_op_testcase(uint64_t, eq, "Argon2 memory cost", 1,
+                             header.Argon2_memory_cost, 65537),
+        Testcase_op_testcase(uint64_t, eq, "Password salt size", 1,
+                             header.psalt_size, 275),
+        Testcase_op_testcase(uint64_t, eq, "Salt size", 1, header.salt_size,
+                             19),
+        Testcase_op_testcase(uint64_t, eq, "Authentication size", 1,
+                             header.authentication_size, 94),
+        Testcase_op_testcase(uint64_t, eq, "Keyfile crypto passes", 1,
+                             header.keyfile_crypto_passes, 4),
+        Testcase_op_testcase(uint64_t, eq, "Chunk identifier size", 1,
+                             header.chunk_identifier_size, 66),
+        Testcase_op_testcase(uint64_t, eq, "Chunk size", 1, header.chunk_size,
+                             123),
+        Testcase_op_testcase(uint64_t, eq, "Metadata size", 1,
+                             header.metadata_size, 59),
+        Testcase_op_testcase(uint64_t, eq, "Lock offset", 1, header.lock_offset,
+                             496),
     };
 
-    for (idx = 0; idx < sizeof(expected) / sizeof(expected[0]); ++idx) {
-        printf("Test %lu: %lu == %lu\n", idx, expected[idx][0], expected[idx][1]);
-
-        if (expected[idx][0] != expected[idx][1]) {
-            fputs("Previous condition failed.\n", stderr);
-            return 1;
-        }
-    }
+    Testcase_run_tv(tv, NULL, 0);
 
     puts("-------------------");
 
@@ -131,9 +145,9 @@ int Test(void) {
         return 1;
     }
 
-    if ((error = pDBv1Header_destroy(&header)) != pDBv1Error_SUCCESS) {
+    if ((error = pDBv1Header_destroy(&header)) != pError_SUCCESS) {
         fprintf(stderr, "Failed to destroy the header object: %s. Errno: %s\n",
-                pDBv1Error_to_string(error), strerror(errno));
+                pError_to_string(error), strerror(errno));
         return 1;
     }
 

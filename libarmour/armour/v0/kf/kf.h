@@ -1,6 +1,8 @@
 #ifndef _KFv0_H
 #define _KFv0_H
 
-void kfv0_hello_world(void);
+int Kfv0_open(const char *filename);
+
+int Kfv0_close(const int fd);
 
 #endif /* _KFv0_H */

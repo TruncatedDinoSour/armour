@@ -1,7 +1,8 @@
 #include "kf.h"
 
-#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
 
-void kfv0_hello_world(void) {
-    puts("Keyfile: Hello, World!");
-}
+int Kfv0_open(const char *filename) { return open(filename, O_RDWR); }
+
+int Kfv0_close(const int fd) { return close(fd); }

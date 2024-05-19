@@ -62,8 +62,8 @@ def main() -> int:
     # Write final output.
 
     with open("f:test.pdb", "wb") as fp:
-        print(f"Generated {fp.name}")
         fp.write(bp.getvalue())
+        print(f"Generated {fp.name}")
 
     return 0
 

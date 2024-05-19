@@ -27,12 +27,13 @@ All multi-byte types (anything above `uint8_t` (so `uint16_t`, `uint32_t`, `uint
 | -------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | `uint8_t[4]`   | `magic`                              | The magic number of the file. Always a constant value.                                                                     |
 | `uint16_t`     | `version`                            | The version of the Keyfile. A constant value per-version. (in the case of pKfv0 case - `0x00`)                             |
-| `uint8_t`      | `lock`                               | Is the Keyfile currently locked/locking/...? See lock statuses below. (support for concurrency)                            |
 | `uint8_t[512]` | `salt`                               | The cryptographically secure Keyfile salt.                                                                                 |
 | `uint16_t`     | `db_AES_crypto_passes`               | When using AES256 cryptography in GCM (Galois/Counter) mode _in the database_, how many times should the algorithm me ran? |
 | `uint16_t`     | `db_ChaCha20_Poly1305_crypto_passes` | When using ChaCha20-Poly1305 cryptography _in the database_, how many times should the algorithm me ran?                   |
 | `uint8_t[64]`  | `db_pepper`                          | 512 bits of cryptographically secure information which are always constant. Used for peppering of data _in the database_.  |
-| `uint8_t[64]`  | `sha3_512_sum`                       | The SHA3-512 hash of the whole database after the hash.                                                                    |
+| `uint8_t[64]`  | `header_sha3_512_sum`                | The SHA3-512 hash of the header before the hash.                                                                           |
+| `uint8_t[64]`  | `sha3_512_sum`                       | The SHA3-512 hash of the whole database after the hash. (including the lock)                                               |
+| `uint8_t`      | `lock`                               | Is the Keyfile currently locked/locking/...? See lock statuses below. (support for concurrency)                            |
 | `uint8_t[]`    | `keys`                               | The keys and/or their parameters stored in the Keyfile. Dynamic section of encrypted chunks.                               |
 
 A generic layout of everything would look like this:
@@ -201,6 +202,7 @@ In other words:
 -   The Keyfile is not currently locked. (access check, to prevent collisions)
 -   `db_AES_crypto_passes` is at least `1`.
 -   `db_ChaCha20_Poly1305_crypto_passes` is at least `1`.
+-   The SHA3-512 sum of the header is correct. (integrity check)
 -   The SHA3-512 sum of the database is correct. (integrity check)
 -   All keys are decryptable and valid. (integrity, authentication, and authorization checks (because a password, correct nonce and associated data, and correct cypher-text is required))
 -   The provision date of any key must not be into the future.

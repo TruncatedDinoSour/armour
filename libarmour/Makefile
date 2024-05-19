@@ -1,6 +1,6 @@
 ifeq ($(NOQA),)
 	CFLAGS += -std=c89 -ansi -Wall -Wextra -Wpedantic -pedantic -Wshadow -Werror -Wconversion -Wformat -Wuninitialized -Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes -Wredundant-decls -Wfloat-equal -Wcast-qual -Wnested-externs -Wvla -Winline -Wmissing-format-attribute -Wmissing-noreturn -pedantic-errors
-	TESTCFLAGS += -g -Og -std=c99
+	TESTCFLAGS += -g -Og -std=c99 -Wall -Wextra -Wpedantic -pedantic -Wshadow -Werror -Wconversion -Wformat -Wuninitialized -Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes -Wredundant-decls -Wfloat-equal -Wcast-qual -Wnested-externs -Wvla -Winline -Wmissing-format-attribute -Wmissing-noreturn -pedantic-errors
 endif
 
 CFLAGS += -fPIC -I$(realpath .) -I.
@@ -11,10 +11,10 @@ LDFLAGS += -shared -lcrypto
 LIB := armour
 LIB_NAME := lib$(LIB).so
 
-ROOT_DIR := ./armour/
+ROOT_DIR := ./armour
 
 SRC_DIRS := $(shell find $(ROOT_DIR) -type f -name '*.c' -exec dirname {} \; | sort | uniq)
-OBJ_DIR := obj/
+OBJ_DIR := obj
 
 SRCS := $(shell find $(SRC_DIRS) -name '*.c')
 OBJS := $(patsubst ./%.c,$(OBJ_DIR)/%.o,$(SRCS))
@@ -34,12 +34,12 @@ $(OBJ_DIR)/%.o: ./%.c
 
 pretest:
 	for pt in $(PRETESTS); do \
-		cd $$(dirname "$$pt") && echo " * Running $$pt" && python3 $$(basename "$$pt"); \
+		cd "$(realpath .)/$$(dirname "$$pt")" && echo " * Running $$pt" && python3 $$(basename "$$pt"); \
 	done
 
 compile_tests: $(LIB_NAME)
 	for test in $(TESTS); do \
-		cd $$(dirname "$$test") && $(CC) -o $$(basename "$$test.elf") $$(basename "$$test") $(TESTCFLAGS) -I$(realpath $(TEST_DIR)) -L$(realpath .) -l$(LIB); \
+		cd "$(realpath .)/$$(dirname "$$test")" && $(CC) -o $$(basename "$$test.elf") $$(basename "$$test") $(TESTCFLAGS) -I$(realpath $(TEST_DIR)) -L$(realpath .) -l$(LIB); \
 	done
 
 clean_tests:
@@ -47,7 +47,7 @@ clean_tests:
 
 run_tests:
 	for test in $(TESTS); do \
-		cd $$(dirname "$$test"); \
+		cd "$(realpath .)/$$(dirname "$$test")"; \
 		LD_LIBRARY_PATH='$(realpath .)' ./"$$(basename "$$test.elf")" >stdout.log 2>stderr.log && echo " * $$test passed. Log: $$PWD/stdout.log" || printf '\033[31m\033[1m%s\033[0m\n' " !! Test $$test failed. See logs $$PWD/std{err,out}.log" >&2; \
 	done
 
