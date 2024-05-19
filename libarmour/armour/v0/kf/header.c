@@ -153,8 +153,8 @@ pError Kfv0Header_check(const Kfv0Header *header, const int fd) {
     if (!(mdctx = sha3_512_evp()))
         return pError_INIT;
 
-    lseek(fd, header->lock_offset,
-          SEEK_SET); /* Go to the start of the database */
+    lseek(fd, header->lock_offset + 1,
+          SEEK_SET); /* Go to the start of the database, skipping the lock. */
 
     while ((rb = read(fd, buf, Kfv0Header_SIZE + Kfv0Header_HASHES_SIZE)) > 0)
         if (1 != EVP_DigestUpdate(mdctx, buf, (uint64_t)rb)) {

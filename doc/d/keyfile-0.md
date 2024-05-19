@@ -32,7 +32,7 @@ All multi-byte types (anything above `uint8_t` (so `uint16_t`, `uint32_t`, `uint
 | `uint16_t`     | `db_ChaCha20_Poly1305_crypto_passes` | When using ChaCha20-Poly1305 cryptography _in the database_, how many times should the algorithm me ran?                   |
 | `uint8_t[64]`  | `db_pepper`                          | 512 bits of cryptographically secure information which are always constant. Used for peppering of data _in the database_.  |
 | `uint8_t[64]`  | `header_sha3_512_sum`                | The SHA3-512 hash of the header before the hash.                                                                           |
-| `uint8_t[64]`  | `sha3_512_sum`                       | The SHA3-512 hash of the whole database after the hash. (including the lock)                                               |
+| `uint8_t[64]`  | `sha3_512_sum`                       | The SHA3-512 hash of the `keys` database after the hash. (**note**: excluding the `lock`)                                      |
 | `uint8_t`      | `lock`                               | Is the Keyfile currently locked/locking/...? See lock statuses below. (support for concurrency)                            |
 | `uint8_t[]`    | `keys`                               | The keys and/or their parameters stored in the Keyfile. Dynamic section of encrypted chunks.                               |
 

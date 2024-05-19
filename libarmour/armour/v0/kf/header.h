@@ -21,6 +21,7 @@ typedef struct Kfv0Header {
     uint8_t header_sha3_512_sum[64];
     uint8_t sha3_512_sum[64];
     int64_t lock_offset;
+
     uint8_t _t[6]; /* Transfer buffer */
 } Kfv0Header;
 

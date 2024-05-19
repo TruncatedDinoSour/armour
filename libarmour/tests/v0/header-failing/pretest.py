@@ -20,8 +20,7 @@ def main() -> int:
     salt: bytes = b"This is a salt: "
     salt += os.urandom(512 - len(salt))
 
-    db: bytes = b"\x00"  # Lock = Unlocked
-    db += os.urandom(64)  # Some garbage data
+    db: bytes = os.urandom(64)  # Some garbage data
 
     bp: BytesIO = BytesIO()
 
@@ -35,7 +34,7 @@ def main() -> int:
     print("Hashing resources")
     bp.write(hashlib.sha3_512(bp.getvalue()).digest())  # header_sha3_512_sum
     bp.write(hashlib.sha3_512(db).digest())  # sha3_512_sum
-    bp.write(db)  # Lock + Keys
+    bp.write(b"\0" + db)  # Lock + Keys
 
     with open("f:test.pkf", "wb") as fp:
         fp.write(bp.getvalue())
