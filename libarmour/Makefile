@@ -43,7 +43,7 @@ compile_tests: $(LIB_NAME)
 	done
 
 clean_tests:
-	rm -rf $(shell find $(TEST_DIR) -name '*.elf' -or -name '*.log' -or -name 'f:*')
+	find $(TEST_DIR) -name '*.elf' -delete -or -name '*.log' -delete -or -name 'f:*' -delete
 
 run_tests:
 	for test in $(TESTS); do \
