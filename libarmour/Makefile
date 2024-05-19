@@ -45,7 +45,7 @@ compile_tests: $(LIB_NAME)
 clean_tests:
 	find $(TEST_DIR) -name '*.elf' -delete -or -name '*.log' -delete -or -name 'f:*' -delete
 
-run_tests:
+run_tests: compile_tests pretest
 	for test in $(TESTS); do \
 		cd "$(realpath .)/$$(dirname "$$test")"; \
 		LD_LIBRARY_PATH='$(realpath .)' ./"$$(basename "$$test.elf")" >stdout.log 2>stderr.log && echo " * $$test passed. Log: $$PWD/stdout.log" || printf '\033[31m\033[1m%s\033[0m\n' " !! Test $$test failed. See logs $$PWD/std{err,out}.log" >&2; \
